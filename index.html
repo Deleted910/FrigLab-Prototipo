@@ -398,12 +398,6 @@
     });
     if(changed) saveDb(dbObj);
   }
-  function genericArt(){
-    return svgUri(`
-      <rect x="110" y="90" width="180" height="140" rx="10"/>
-      <circle cx="200" cy="145" r="26"/>
-      <path d="M120 220 L165 175 L200 205 L245 165 L280 220 Z"/>`);
-  }
   function saveDb(db){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); return true; }catch(e){ return false; } }
 
   /* Redimensiona/comprime uma imagem enviada pelo admin antes de guardar (mantém o localStorage leve) */
@@ -426,38 +420,6 @@
     reader.onerror = function(){ showToast("Não foi possível ler esse arquivo."); };
     reader.readAsDataURL(file);
   }
-
-  let db = loadDb();
-
-  function getSession(){
-    try{ return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }catch(e){ return null; }
-  }
-  function setSession(s){
-    if(s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    else localStorage.removeItem(SESSION_KEY);
-  }
-  function currentUser(){
-    const s = getSession();
-    if(!s) return null;
-    return db.users.find(u => u.id === s.userId) || null;
-  }
-
-  /* ===================== A11y state ===================== */
-  function loadA11y(){
-    try{ return Object.assign({fontScale:1, highContrast:false, reduceMotion:false}, JSON.parse(localStorage.getItem(A11Y_KEY) || "{}")); }
-    catch(e){ return {fontScale:1, highContrast:false, reduceMotion:false}; }
-  }
-  let a11y = loadA11y();
-  function saveA11y(){ localStorage.setItem(A11Y_KEY, JSON.stringify(a11y)); applyA11y(); }
-  function applyA11y(){
-    document.documentElement.style.setProperty("--font-scale", a11y.fontScale);
-    document.documentElement.setAttribute("data-contrast", a11y.highContrast ? "high" : "normal");
-    document.documentElement.setAttribute("data-motion", a11y.reduceMotion ? "reduced" : "normal");
-  }
-  applyA11y();
-
-  /* ===================== Helpers ===================== */
-  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
   /* ---- Ilustrações padrão dos produtos (usadas até o admin subir uma foto real) ---- */
   function svgUri(inner){
@@ -516,6 +478,44 @@
         <line x1="90" y1="135" x2="310" y2="135" stroke="#e8a94a"/>
       </g>`)
   };
+  function genericArt(){
+    return svgUri(`
+      <rect x="110" y="90" width="180" height="140" rx="10"/>
+      <circle cx="200" cy="145" r="26"/>
+      <path d="M120 220 L165 175 L200 205 L245 165 L280 220 Z"/>`);
+  }
+
+  let db = loadDb();
+
+  function getSession(){
+    try{ return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }catch(e){ return null; }
+  }
+  function setSession(s){
+    if(s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else localStorage.removeItem(SESSION_KEY);
+  }
+  function currentUser(){
+    const s = getSession();
+    if(!s) return null;
+    return db.users.find(u => u.id === s.userId) || null;
+  }
+
+  /* ===================== A11y state ===================== */
+  function loadA11y(){
+    try{ return Object.assign({fontScale:1, highContrast:false, reduceMotion:false}, JSON.parse(localStorage.getItem(A11Y_KEY) || "{}")); }
+    catch(e){ return {fontScale:1, highContrast:false, reduceMotion:false}; }
+  }
+  let a11y = loadA11y();
+  function saveA11y(){ localStorage.setItem(A11Y_KEY, JSON.stringify(a11y)); applyA11y(); }
+  function applyA11y(){
+    document.documentElement.style.setProperty("--font-scale", a11y.fontScale);
+    document.documentElement.setAttribute("data-contrast", a11y.highContrast ? "high" : "normal");
+    document.documentElement.setAttribute("data-motion", a11y.reduceMotion ? "reduced" : "normal");
+  }
+  applyA11y();
+
+  /* ===================== Helpers ===================== */
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
   function brl(n){ return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n); }
   function initials(name){ return (name||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
   function uid(prefix){ return prefix + "_" + Math.random().toString(36).slice(2,9); }
