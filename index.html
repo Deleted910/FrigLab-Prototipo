@@ -19,6 +19,10 @@
     --danger-tint:#F7DEDC;
     --success:#1F7A4D;
     --success-tint:#DCEFE3;
+    --orange:#B85C00;
+    --orange-tint:#F8E4CC;
+    --yellow:#8A6D00;
+    --yellow-tint:#F7F0CC;
     --focus:#0C7C86;
     --shadow:0 1px 2px rgba(15,30,32,.06), 0 8px 24px -12px rgba(15,30,32,.18);
     --radius-s:6px;
@@ -43,6 +47,10 @@
       --danger-tint:#341715;
       --success:#5CBE8B;
       --success-tint:#122A1E;
+      --orange:#E8974A;
+      --orange-tint:#332310;
+      --yellow:#D9C24A;
+      --yellow-tint:#2E2A10;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
     }
   }
@@ -62,6 +70,10 @@
     --danger-tint:#341715;
     --success:#5CBE8B;
     --success-tint:#122A1E;
+    --orange:#E8974A;
+    --orange-tint:#332310;
+    --yellow:#D9C24A;
+    --yellow-tint:#2E2A10;
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
   }
   :root[data-contrast="high"]{
@@ -234,6 +246,15 @@
   .badge-danger{background:var(--danger-tint); color:var(--danger);}
   .badge-neutral{background:var(--surface-2); color:var(--text-2);}
   .badge-accent{background:var(--accent-tint); color:var(--accent-strong);}
+  .badge-orange{background:var(--orange-tint); color:var(--orange);}
+  .badge-yellow{background:var(--yellow-tint); color:var(--yellow);}
+
+  .nav-badge{display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--danger); color:#fff; font-size:.68rem; font-weight:800; margin-left:4px; vertical-align:middle;}
+  .bell-btn{position:relative;}
+  .bell-dot{position:absolute; top:5px; right:5px; min-width:16px; height:16px; padding:0 4px; border-radius:999px; background:var(--danger); color:#fff; font-size:.62rem; font-weight:800; display:flex; align-items:center; justify-content:center; border:2px solid var(--surface);}
+  .row-unread{position:relative;}
+  .row-unread td:first-child{box-shadow:inset 3px 0 0 var(--accent);}
+  .row-unread-badge{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;color:var(--accent-strong);background:var(--accent-tint);padding:2px 8px;border-radius:999px;margin-left:8px;}
 
   table{width:100%; border-collapse:collapse; font-size:.86rem;}
   th{text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-2); padding:0 14px 10px; font-weight:700;}
@@ -256,7 +277,12 @@
   .typing span:nth-child(2){animation-delay:.2s;} .typing span:nth-child(3){animation-delay:.4s;}
   @keyframes blink{0%,80%,100%{opacity:.25;}40%{opacity:1;}}
   .chat-input{display:flex; gap:10px; padding:16px; border-top:1px solid var(--border);}
-  .chat-input input, .chat-input select{flex:1;}
+  .chat-input input, .chat-input select{
+    flex:1; background:var(--surface); color:var(--text); border:1.5px solid var(--border);
+    border-radius:var(--radius-s); padding:11px 13px; font-size:.92rem;
+  }
+  .chat-input input:focus, .chat-input select:focus{border-color:var(--accent);}
+  .chat-input input::placeholder{color:var(--text-2);}
   .chips{display:flex; flex-wrap:wrap; gap:8px; padding:0 22px 16px;}
   .chip{padding:8px 14px; border-radius:999px; border:1.5px solid var(--accent); color:var(--accent-strong); background:var(--accent-tint); font-weight:600; font-size:.82rem;}
   .chip:hover{background:var(--accent); color:#fff;}
@@ -288,8 +314,11 @@
   .a11y-fab{position:fixed; right:22px; bottom:22px; z-index:50; width:52px;height:52px;border-radius:50%;
     background:var(--accent); color:#fff; border:none; box-shadow:var(--shadow); font-size:1.35rem; display:flex;align-items:center;justify-content:center;}
   .a11y-fab:hover{background:var(--accent-strong);}
+  .whatsapp-fab{position:fixed; right:22px; bottom:84px; z-index:50; width:52px;height:52px;border-radius:50%;
+    background:#25D366; color:#fff; border:none; box-shadow:var(--shadow); display:flex;align-items:center;justify-content:center;}
+  .whatsapp-fab:hover{background:#1EBE5A;}
   .a11y-panel{
-    position:fixed; right:22px; bottom:84px; z-index:50; width:300px; background:var(--surface);
+    position:fixed; right:22px; bottom:146px; z-index:50; width:300px; background:var(--surface);
     border:1px solid var(--border); border-radius:var(--radius-l); box-shadow:var(--shadow); padding:18px;
   }
   .a11y-panel h4{font-size:.95rem; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;}
@@ -555,7 +584,34 @@
     {key:"entregue", label:"Entregue"}
   ];
   function orderStatusIndex(status){ return ORDER_STEPS.findIndex(s=>s.key===status); }
+  const ORDER_STATUS_BADGE_CLASS = {
+    recebido: "badge-accent",
+    em_producao: "badge-orange",
+    em_transporte: "badge-yellow",
+    entregue: "badge-success"
+  };
 
+  /* Alerta de mensagem nova no chat do pedido */
+  function hasUnreadOrder(order, role){
+    const chat = order.chat || [];
+    if(!chat.length) return false;
+    const last = chat[chat.length-1];
+    const fromOther = role === "admin" ? last.from === "cliente" : last.from === "admin";
+    if(!fromOther) return false;
+    const seen = order.lastSeen && order.lastSeen[role];
+    if(!seen) return true;
+    return new Date(last.ts).getTime() > new Date(seen).getTime();
+  }
+  function unreadOrdersCount(user){
+    if(!user) return 0;
+    if(user.role === "admin") return db.orders.filter(o => hasUnreadOrder(o, "admin")).length;
+    return db.orders.filter(o => o.clientId === user.id && hasUnreadOrder(o, "cliente")).length;
+  }
+  function markOrderSeen(order, role){
+    order.lastSeen = order.lastSeen || {};
+    order.lastSeen[role] = new Date().toISOString();
+    saveDb(db);
+  }
   /* ===================== Router ===================== */
   const PUBLIC_ROUTES = ["#/login","#/cadastro"];
   const GUEST_OK_PREFIXES = ["#/catalogo", "#/produto/"];
@@ -641,13 +697,17 @@
       {key:"admin-pedidos", label:"Pedidos", href:"#/admin/pedidos"}
     ];
     const nav = isAdmin ? navAdmin : navClient;
+    const unread = unreadOrdersCount(user);
     return `
       <div class="topbar">
         <div class="brand" data-nav="${isAdmin ? '#/admin/catalogo' : '#/catalogo'}" tabindex="0" role="link" aria-label="Ir para o catálogo"><span class="mark">❄</span><span>FrigLab<small>${isAdmin?"Painel administrativo":"Plataforma de orçamentos"}</small></span></div>
         <nav class="nav-links">
-          ${nav.map(n => `<button data-nav="${n.href}" class="${activeKey===n.key?"active":""}">${n.label}</button>`).join("")}
+          ${nav.map(n => `<button data-nav="${n.href}" class="${activeKey===n.key?"active":""}">${n.label}${unread>0 && n.key.endsWith("pedidos")?` <span class="nav-badge">${unread}</span>`:""}</button>`).join("")}
         </nav>
         <div class="topbar-right">
+          <button class="icon-btn bell-btn" data-nav="${isAdmin ? '#/admin/pedidos' : '#/meus-pedidos'}" aria-label="Notificações de pedidos${unread>0?` (${unread} não lidas)`:""}">
+            🔔${unread>0?`<span class="bell-dot">${unread}</span>`:""}
+          </button>
           <div class="user-menu-wrap">
             <button class="user-chip" id="userMenuBtn" aria-haspopup="true" aria-expanded="false">
               <span class="avatar">${esc(initials(user.nome))}</span>
@@ -1096,8 +1156,12 @@
       <div class="page-head"><div><span class="eyebrow">Pedidos</span><h1>Meus pedidos</h1></div></div>
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Valor</th><th>Status</th><th>Data</th><th></th></tr></thead>
-        <tbody>${mine.map(o=>`<tr><td class="mono">${esc(o.numero)}</td><td class="mono">${brl(o.valor)}</td><td><span class="badge badge-accent">${ORDER_STEPS[orderStatusIndex(o.status)].label}</span></td><td>${fmtDate(o.createdAt)}</td>
-        <td><button class="btn btn-ghost btn-sm" data-nav="#/pedido/${o.id}">Acompanhar →</button></td></tr>`).join("")}</tbody>
+        <tbody>${mine.map(o=>{
+          const unread = hasUnreadOrder(o, "cliente");
+          const st = ORDER_STEPS[orderStatusIndex(o.status)];
+          return `<tr class="${unread?'row-unread':''}"><td class="mono">${esc(o.numero)}</td><td class="mono">${brl(o.valor)}</td><td><span class="badge ${ORDER_STATUS_BADGE_CLASS[o.status]}">${st.label}</span></td><td>${fmtDate(o.createdAt)}</td>
+          <td><button class="btn btn-ghost btn-sm" data-nav="#/pedido/${o.id}">Acompanhar →</button>${unread?`<span class="row-unread-badge">🔔 Nova mensagem</span>`:""}</td></tr>`;
+        }).join("")}</tbody>
       </table></div>
     `;
   }
@@ -1219,18 +1283,24 @@
   }
 
   function viewAdminPedidos(){
-    const all = [...db.orders].sort((a,b)=> b.createdAt.localeCompare(a.createdAt));
+    const all = [...db.orders].sort((a,b)=>{
+      const ua = hasUnreadOrder(a,"admin"), ub = hasUnreadOrder(b,"admin");
+      if(ua !== ub) return ua ? -1 : 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
     if(!all.length) return `<div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1></div></div>` + emptyState("Nenhum pedido confirmado ainda.", "#/admin/catalogo", "Ver catálogo");
+    const unreadTotal = all.filter(o=>hasUnreadOrder(o,"admin")).length;
     return `
-      <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1><p>${all.length} pedidos no total.</p></div></div>
+      <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1><p>${all.length} pedidos no total.${unreadTotal?` <b style="color:var(--danger);">${unreadTotal} com mensagem nova</b> — listados primeiro.`:""}</p></div></div>
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Cliente</th><th>Valor</th><th>Status</th><th>Data</th><th></th></tr></thead>
         <tbody>${all.map(o=>{
           const cl = db.users.find(u=>u.id===o.clientId);
           const idx = orderStatusIndex(o.status);
           const next = ORDER_STEPS[idx+1];
-          return `<tr><td class="mono">${esc(o.numero)}</td><td>${esc(cl?cl.nome:"—")}</td><td class="mono">${brl(o.valor)}</td><td><span class="badge badge-accent">${ORDER_STEPS[idx].label}</span></td><td>${fmtDate(o.createdAt)}</td>
-          <td class="table-actions">${next?`<button class="btn btn-secondary btn-sm" data-action="avancar-pedido" data-id="${o.id}">Avançar para "${next.label}"</button>`:'<span style="color:var(--text-2);font-size:.8rem;">Concluído</span>'}<button class="btn btn-ghost btn-sm" data-nav="#/pedido/${o.id}">💬 Chat</button></td></tr>`;
+          const unread = hasUnreadOrder(o,"admin");
+          return `<tr class="${unread?'row-unread':''}"><td class="mono">${esc(o.numero)}</td><td>${esc(cl?cl.nome:"—")}</td><td class="mono">${brl(o.valor)}</td><td><span class="badge ${ORDER_STATUS_BADGE_CLASS[o.status]}">${ORDER_STEPS[idx].label}</span></td><td>${fmtDate(o.createdAt)}</td>
+          <td class="table-actions">${next?`<button class="btn btn-secondary btn-sm" data-action="avancar-pedido" data-id="${o.id}">Avançar para "${next.label}"</button>`:'<span style="color:var(--text-2);font-size:.8rem;">Concluído</span>'}<button class="btn btn-ghost btn-sm" data-nav="#/pedido/${o.id}">💬 Chat</button>${unread?`<span class="row-unread-badge">🔔 Nova</span>`:""}</td></tr>`;
         }).join("")}</tbody>
       </table></div>
     `;
@@ -1240,6 +1310,12 @@
   let a11yOpen = false;
   function a11yWidget(){
     return `
+      <button class="whatsapp-fab" id="whatsappFab" aria-label="Falar com um vendedor pelo WhatsApp">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+          <path d="M12.05 2C6.53 2 2.05 6.48 2.05 12c0 1.85.5 3.58 1.36 5.07L2 22l5.06-1.33A9.94 9.94 0 0 0 12.05 22C17.57 22 22.05 17.52 22.05 12S17.57 2 12.05 2Zm0 18.15c-1.66 0-3.2-.46-4.51-1.26l-.32-.19-3.02.8.8-2.95-.21-.31A8.14 8.14 0 0 1 3.9 12c0-4.49 3.65-8.15 8.15-8.15S20.2 7.51 20.2 12s-3.65 8.15-8.15 8.15Z"/>
+          <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.44-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.87 1.22 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.2-.57-.35Z"/>
+        </svg>
+      </button>
       <button class="a11y-fab" id="a11yFab" aria-haspopup="true" aria-expanded="${a11yOpen}" aria-label="Abrir painel de acessibilidade">♿</button>
       <div class="a11y-panel" id="a11yPanel" ${a11yOpen?"":"hidden"} role="dialog" aria-label="Painel de acessibilidade">
         <h4>Acessibilidade <button class="icon-btn" style="width:26px;height:26px;font-size:.8rem;" id="a11yClose" aria-label="Fechar">✕</button></h4>
@@ -1260,6 +1336,8 @@
     `;
   }
   function initA11yWidget(){
+    const wa = document.getElementById("whatsappFab");
+    if(wa) wa.addEventListener("click", ()=>{ showToast("Em breve: fale com um vendedor direto pelo WhatsApp."); });
     const fab = document.getElementById("a11yFab");
     const panel = document.getElementById("a11yPanel");
     fab.addEventListener("click", ()=>{ a11yOpen = !a11yOpen; panel.hidden = !a11yOpen; fab.setAttribute("aria-expanded", a11yOpen); });
@@ -1501,9 +1579,15 @@
       }
     }
     if(path === "orcamento" && parts[1] === "chat"){ bindChatInputs(); }
-    if(path === "pedido"){
+    if(path === "pedido" && parts[1]){
       const log = document.getElementById("orderChatLog");
       if(log) log.scrollTop = log.scrollHeight;
+      const o = db.orders.find(x=>x.id===parts[1]);
+      const me = currentUser();
+      if(o && me){
+        const role = me.role === "admin" ? "admin" : "cliente";
+        if(role === "admin" || o.clientId === me.id) markOrderSeen(o, role);
+      }
     }
   }
 
