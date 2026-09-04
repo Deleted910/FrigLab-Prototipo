@@ -645,12 +645,18 @@
     if(!seen) return true;
     return new Date(last.ts).getTime() > new Date(seen).getTime();
   }
-  function unreadCount(user){
+  function unreadCountByType(user, type){
     if(!user) return 0;
     const role = user.role === "admin" ? "admin" : "cliente";
-    const myOrders = user.role === "admin" ? db.orders : db.orders.filter(o => o.clientId === user.id);
+    if(type === "pedido"){
+      const myOrders = user.role === "admin" ? db.orders : db.orders.filter(o => o.clientId === user.id);
+      return myOrders.filter(o => hasUnreadThread(o, role)).length;
+    }
     const myQuotes = user.role === "admin" ? db.quotes : db.quotes.filter(q => q.clientId === user.id);
-    return myOrders.filter(o => hasUnreadThread(o, role)).length + myQuotes.filter(q => hasUnreadThread(q, role)).length;
+    return myQuotes.filter(q => hasUnreadThread(q, role)).length;
+  }
+  function unreadCount(user){
+    return unreadCountByType(user, "pedido") + unreadCountByType(user, "orcamento");
   }
   function unreadNotifications(user){
     if(!user) return [];
@@ -772,12 +778,19 @@
       {key:"admin-pedidos", label:"Pedidos", href:"#/admin/pedidos"}
     ];
     const nav = isAdmin ? navAdmin : navClient;
-    const unread = unreadCount(user);
+    const unreadPedidos = unreadCountByType(user, "pedido");
+    const unreadOrcamentos = unreadCountByType(user, "orcamento");
+    const unread = unreadPedidos + unreadOrcamentos;
     return `
       <div class="topbar">
         <div class="brand" data-nav="${isAdmin ? '#/admin/catalogo' : '#/catalogo'}" tabindex="0" role="link" aria-label="Ir para o catálogo"><span class="mark">❄</span><span>FrigLab<small>${isAdmin?"Painel administrativo":"Plataforma de orçamentos"}</small></span></div>
         <nav class="nav-links">
-          ${nav.map(n => `<button data-nav="${n.href}" class="${activeKey===n.key?"active":""}">${n.label}${unread>0 && n.key.endsWith("pedidos")?` <span class="nav-badge">${unread}</span>`:""}</button>`).join("")}
+          ${nav.map(n => {
+            let badge = 0;
+            if(n.key.endsWith("pedidos")) badge = unreadPedidos;
+            else if(n.key.endsWith("orcamentos")) badge = unreadOrcamentos;
+            return `<button data-nav="${n.href}" class="${activeKey===n.key?"active":""}">${n.label}${badge>0?` <span class="nav-badge">${badge}</span>`:""}</button>`;
+          }).join("")}
         </nav>
         <div class="topbar-right">
           <div class="notif-wrap">
