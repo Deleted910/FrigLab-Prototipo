@@ -611,7 +611,7 @@
   function resetChat(productId){
     const product = db.products.find(p=>p.id===productId) || db.products[0];
     chatState = { product, step:"quantidade", quantidade:null, aplicacao:null, log:[
-      {who:"bot", text:`Olá! Sou o assistente de orçamentos da FrigLab 🤖. Vi que você tem interesse em **${product.nome}**. Para montar sua estimativa, preciso de alguns detalhes.`},
+      {who:"bot", text:`Olá! Sou o assistente de orçamentos da FrigLab 🤖. Vi que você tem interesse em ${product.nome}. Para montar sua estimativa, preciso de alguns detalhes.`},
       {who:"bot", text: unidadeLabel(product) }
     ]};
   }
