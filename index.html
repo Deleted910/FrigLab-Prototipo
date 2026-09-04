@@ -109,32 +109,40 @@
 
   /* ---------- Shell ---------- */
   #app{min-height:100vh; display:flex; flex-direction:column;}
+  body{overflow-x:hidden;}
   .topbar{
-    display:flex; align-items:center; gap:28px;
+    display:flex; align-items:center; gap:16px;
     padding:14px 28px; background:var(--surface); border-bottom:1px solid var(--border);
     position:sticky; top:0; z-index:20;
   }
-  .brand{display:flex; align-items:center; gap:10px; font-family:"Archivo"; font-weight:800; font-size:1.15rem; letter-spacing:-.01em;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:"Archivo"; font-weight:800; font-size:1.15rem; letter-spacing:-.01em; flex:none; white-space:nowrap;}
   .brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(155deg,var(--accent),var(--accent-strong));display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;flex:none;}
   .brand small{display:block;font-family:"Inter";font-weight:500;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);}
-  .nav-links{display:flex; gap:4px; flex:1;}
+  .nav-links{display:flex; gap:4px; flex:1 1 auto; min-width:0; overflow-x:auto; scrollbar-width:thin;}
   .nav-links button{
     background:none;border:none;padding:8px 14px;border-radius:var(--radius-s);
-    font-weight:600;font-size:.92rem;color:var(--text-2);
+    font-weight:600;font-size:.92rem;color:var(--text-2); white-space:nowrap; flex:none;
   }
   .nav-links button:hover{background:var(--surface-2); color:var(--text);}
   .nav-links button.active{background:var(--accent-tint); color:var(--accent-strong);}
-  .topbar-right{display:flex; align-items:center; gap:10px;}
+  .topbar-right{display:flex; align-items:center; gap:10px; flex:none;}
   .icon-btn{
     width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--surface);
-    display:flex;align-items:center;justify-content:center;font-size:1.05rem;
+    display:flex;align-items:center;justify-content:center;font-size:1.05rem; flex:none;
   }
   .icon-btn:hover{background:var(--surface-2);}
-  .user-chip{display:flex; align-items:center; gap:8px; padding:5px 12px 5px 5px; border-radius:999px; border:1px solid var(--border); background:var(--surface);}
+  .user-chip{display:flex; align-items:center; gap:8px; padding:5px 12px 5px 5px; border-radius:999px; border:1px solid var(--border); background:var(--surface); white-space:nowrap;}
   .avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex:none;}
   .user-chip .who{text-align:left;}
   .user-chip .who b{display:block;font-size:.8rem;line-height:1.1;}
   .user-chip .who span{display:block;font-size:.68rem;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em;}
+  @media (max-width:720px){
+    .topbar{padding:10px 14px; gap:10px;}
+    .brand small, .user-chip .who span{display:none;}
+    .brand{font-size:1rem;}
+    .nav-links button{padding:7px 10px; font-size:.84rem;}
+    .user-chip .who b{font-size:.76rem;}
+  }
   .user-menu-wrap{position:relative;}
   .user-menu{
     position:absolute; right:0; top:calc(100% + 8px); background:var(--surface); border:1px solid var(--border);
