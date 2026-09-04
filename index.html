@@ -178,6 +178,9 @@
   .notif-item:hover{background:var(--surface-2);}
   .notif-item .notif-top{display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;}
   .notif-item .notif-order{font-size:.78rem; font-weight:700; color:var(--accent-strong);}
+  .notif-tipo{display:inline-block; font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:2px 7px; border-radius:999px; margin-right:6px; vertical-align:middle;}
+  .notif-tipo-pedido{background:var(--accent-tint); color:var(--accent-strong);}
+  .notif-tipo-orcamento{background:var(--warning-tint); color:var(--warning);}
   .notif-item .notif-date{font-size:.7rem; color:var(--text-2); white-space:nowrap;}
   .notif-item .notif-from{font-size:.72rem; color:var(--text-2); margin-bottom:2px;}
   .notif-item .notif-text{font-size:.85rem; color:var(--text); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
@@ -407,9 +410,14 @@
 
   function seedQuotes(){
     return [
-      { id:"q_demo1", numero:"ORC-0001", clientId:"u_demo_cliente", productId:"d_correr", quantidade:2, aplicacao:"Câmara fria de açougue, acesso de carga e descarga", valor:9568, status:"pendente", createdAt:"2026-09-02T10:15:00" },
+      { id:"q_demo1", numero:"ORC-0001", clientId:"u_demo_cliente", productId:"d_correr", quantidade:2, aplicacao:"Câmara fria de açougue, acesso de carga e descarga", valor:9568, status:"pendente", createdAt:"2026-09-02T10:15:00", chat:[
+        {from:"cliente", texto:"A porta de correr aceita automatismo de abertura? Vi que é opcional.", ts:"2026-09-02T11:00:00"},
+        {from:"admin", texto:"Aceita sim! O automatismo entra como item opcional no orçamento — se quiser, eu já incluo o valor na proposta.", ts:"2026-09-02T13:20:00"}
+      ] },
       { id:"q_demo2", numero:"ORC-0002", clientId:"u_demo_cliente", productId:"d_vaivem", quantidade:4, aplicacao:"Cozinha industrial com alto fluxo de circulação", valor:11648, status:"aprovado_cliente", createdAt:"2026-09-03T14:30:00" },
-      { id:"q_demo3", numero:"ORC-0003", clientId:"u_demo_cliente", productId:"d_emergencia", quantidade:1, aplicacao:"Saída de emergência em câmara fria de laticínios", valor:3328, status:"encaminhado_representante", createdAt:"2026-08-29T09:00:00" },
+      { id:"q_demo3", numero:"ORC-0003", clientId:"u_demo_cliente", productId:"d_emergencia", quantidade:1, aplicacao:"Saída de emergência em câmara fria de laticínios", valor:3328, status:"encaminhado_representante", createdAt:"2026-08-29T09:00:00", chat:[
+        {from:"cliente", texto:"Essa porta de emergência atende a norma de saída para câmaras frigoríficas?", ts:"2026-08-29T09:30:00"}
+      ] },
       { id:"q_demo4", numero:"ORC-0004", clientId:"u_demo_cliente", productId:"pn_pir", quantidade:60, aplicacao:"Vedação de câmara fria em obra nova de distribuidora", valor:19968, status:"convertido", createdAt:"2026-08-20T11:00:00" },
       { id:"q_demo5", numero:"ORC-0005", clientId:"u_demo_cliente", productId:"tl_pir", quantidade:45, aplicacao:"Cobertura de galpão frigorífico", valor:13338, status:"convertido", createdAt:"2026-08-15T16:00:00" },
       { id:"q_demo6", numero:"ORC-0006", clientId:"u_demo_cliente", productId:"d_giroleve", quantidade:3, aplicacao:"Salas climatizadas de laboratório", valor:6552, status:"convertido", createdAt:"2026-08-10T13:00:00" }
@@ -467,6 +475,9 @@
     });
     dbObj.orders.forEach(o => {
       if(!o.chat){ o.chat = []; changed = true; }
+    });
+    dbObj.quotes.forEach(q => {
+      if(!q.chat){ q.chat = []; changed = true; }
     });
     if(changed) saveDb(dbObj);
   }
@@ -624,40 +635,55 @@
   };
 
   /* Alerta de mensagem nova no chat do pedido */
-  function hasUnreadOrder(order, role){
-    const chat = order.chat || [];
+  function hasUnreadThread(entity, role){
+    const chat = entity.chat || [];
     if(!chat.length) return false;
     const last = chat[chat.length-1];
     const fromOther = role === "admin" ? last.from === "cliente" : last.from === "admin";
     if(!fromOther) return false;
-    const seen = order.lastSeen && order.lastSeen[role];
+    const seen = entity.lastSeen && entity.lastSeen[role];
     if(!seen) return true;
     return new Date(last.ts).getTime() > new Date(seen).getTime();
   }
-  function unreadOrdersCount(user){
+  function unreadCount(user){
     if(!user) return 0;
-    if(user.role === "admin") return db.orders.filter(o => hasUnreadOrder(o, "admin")).length;
-    return db.orders.filter(o => o.clientId === user.id && hasUnreadOrder(o, "cliente")).length;
+    const role = user.role === "admin" ? "admin" : "cliente";
+    const myOrders = user.role === "admin" ? db.orders : db.orders.filter(o => o.clientId === user.id);
+    const myQuotes = user.role === "admin" ? db.quotes : db.quotes.filter(q => q.clientId === user.id);
+    return myOrders.filter(o => hasUnreadThread(o, role)).length + myQuotes.filter(q => hasUnreadThread(q, role)).length;
   }
   function unreadNotifications(user){
     if(!user) return [];
     const role = user.role === "admin" ? "admin" : "cliente";
-    const mine = user.role === "admin" ? db.orders : db.orders.filter(o => o.clientId === user.id);
-    return mine.filter(o => hasUnreadOrder(o, role)).map(o => {
+    const myOrders = user.role === "admin" ? db.orders : db.orders.filter(o => o.clientId === user.id);
+    const myQuotes = user.role === "admin" ? db.quotes : db.quotes.filter(q => q.clientId === user.id);
+    const fromOrders = myOrders.filter(o => hasUnreadThread(o, role)).map(o => {
       const last = o.chat[o.chat.length - 1];
       const q = getQuote(o.quoteId); const p = q ? getProduct(q.productId) : null;
       const cl = role === "admin" ? db.users.find(u => u.id === o.clientId) : null;
       return {
-        orderId: o.id, numero: o.numero,
+        tipo: "Pedido", href: `#/pedido/${o.id}`, numero: o.numero,
         produto: p ? p.nome : "",
         from: role === "admin" ? (cl ? cl.nome : "Cliente") : "Equipe FrigLab",
         texto: last.texto, ts: last.ts
       };
-    }).sort((a,b)=> new Date(b.ts) - new Date(a.ts));
+    });
+    const fromQuotes = myQuotes.filter(q => hasUnreadThread(q, role)).map(q => {
+      const last = q.chat[q.chat.length - 1];
+      const p = getProduct(q.productId);
+      const cl = role === "admin" ? db.users.find(u => u.id === q.clientId) : null;
+      return {
+        tipo: "Orçamento", href: `#/orcamento/${q.id}`, numero: q.numero,
+        produto: p ? p.nome : "",
+        from: role === "admin" ? (cl ? cl.nome : "Cliente") : "Equipe FrigLab",
+        texto: last.texto, ts: last.ts
+      };
+    });
+    return [...fromOrders, ...fromQuotes].sort((a,b)=> new Date(b.ts) - new Date(a.ts));
   }
-  function markOrderSeen(order, role){
-    order.lastSeen = order.lastSeen || {};
-    order.lastSeen[role] = new Date().toISOString();
+  function markThreadSeen(entity, role){
+    entity.lastSeen = entity.lastSeen || {};
+    entity.lastSeen[role] = new Date().toISOString();
     saveDb(db);
   }
   /* ===================== Router ===================== */
@@ -678,7 +704,8 @@
     }
     if(PUBLIC_ROUTES.includes(route)){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
     if(user.role!=="admin" && ADMIN_ROUTES.includes(route)){ go("#/catalogo"); return false; }
-    if(user.role==="admin" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/")){ go("#/admin/catalogo"); return false; }
+    const isOrcamentoDetail = route.startsWith("#/orcamento/") && !route.startsWith("#/orcamento/chat");
+    if(user.role==="admin" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/") && !isOrcamentoDetail){ go("#/admin/catalogo"); return false; }
     return true;
   }
 
@@ -745,7 +772,7 @@
       {key:"admin-pedidos", label:"Pedidos", href:"#/admin/pedidos"}
     ];
     const nav = isAdmin ? navAdmin : navClient;
-    const unread = unreadOrdersCount(user);
+    const unread = unreadCount(user);
     return `
       <div class="topbar">
         <div class="brand" data-nav="${isAdmin ? '#/admin/catalogo' : '#/catalogo'}" tabindex="0" role="link" aria-label="Ir para o catálogo"><span class="mark">❄</span><span>FrigLab<small>${isAdmin?"Painel administrativo":"Plataforma de orçamentos"}</small></span></div>
@@ -763,8 +790,8 @@
                 const notifs = unreadNotifications(user);
                 if(!notifs.length) return `<div class="notif-empty">Nenhuma mensagem nova.</div>`;
                 return notifs.map(n => `
-                  <button class="notif-item" data-nav="#/pedido/${n.orderId}">
-                    <div class="notif-top"><span class="notif-order">${esc(n.numero)}${n.produto?` · ${esc(n.produto)}`:""}</span><span class="notif-date">${fmtDate(n.ts)}</span></div>
+                  <button class="notif-item" data-nav="${n.href}">
+                    <div class="notif-top"><span class="notif-order"><span class="notif-tipo ${n.tipo==='Pedido'?'notif-tipo-pedido':'notif-tipo-orcamento'}">${n.tipo}</span>${esc(n.numero)}${n.produto?` · ${esc(n.produto)}`:""}</span><span class="notif-date">${fmtDate(n.ts)}</span></div>
                     <div class="notif-from">${esc(n.from)}</div>
                     <div class="notif-text">${esc(n.texto)}</div>
                   </button>
@@ -1093,6 +1120,11 @@
   function viewOrcamentoResumo(id){
     const q = getQuote(id);
     if(!q) return emptyState("Orçamento não encontrado.", "#/catalogo", "Voltar ao catálogo");
+    const me = currentUser();
+    const isAdmin = me && me.role === "admin";
+    if(!isAdmin && (!me || q.clientId !== me.id)){
+      return emptyState("Você não tem acesso a este orçamento.", "#/meus-orcamentos", "Ver meus orçamentos");
+    }
     const p = getProduct(q.productId);
     const st = QUOTE_STATUS_LABEL[q.status];
     return `
@@ -1122,6 +1154,7 @@
           ` : ""}
         </div>
       </div>
+      ${threadChatHtml(q, isAdmin, "orcamento", "Conversa sobre o orçamento", "Tire dúvidas com a nossa equipe sobre esta estimativa.")}
     `;
   }
 
@@ -1134,8 +1167,9 @@
         <thead><tr><th>Número</th><th>Produto</th><th>Valor estimado</th><th>Status</th><th>Data</th><th></th></tr></thead>
         <tbody>${mine.map(q=>{
           const p = getProduct(q.productId); const st = QUOTE_STATUS_LABEL[q.status];
-          return `<tr><td class="mono">${esc(q.numero)}</td><td>${esc(p.nome)}</td><td class="mono">${brl(q.valor)}</td><td><span class="badge ${st.cls}">${st.label}</span></td><td>${fmtDate(q.createdAt)}</td>
-          <td><button class="btn btn-ghost btn-sm" data-nav="#/orcamento/${q.id}">Ver detalhes →</button></td></tr>`;
+          const unread = hasUnreadThread(q, "cliente");
+          return `<tr class="${unread?'row-unread':''}"><td class="mono">${esc(q.numero)}</td><td>${esc(p.nome)}</td><td class="mono">${brl(q.valor)}</td><td><span class="badge ${st.cls}">${st.label}</span></td><td>${fmtDate(q.createdAt)}</td>
+          <td><button class="btn btn-ghost btn-sm" data-nav="#/orcamento/${q.id}">Ver detalhes →</button>${unread?`<span class="row-unread-badge">🔔 Nova mensagem</span>`:""}</td></tr>`;
         }).join("")}</tbody>
       </table></div>
     `;
@@ -1221,7 +1255,7 @@
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Valor</th><th>Status</th><th>Data</th><th></th></tr></thead>
         <tbody>${mine.map(o=>{
-          const unread = hasUnreadOrder(o, "cliente");
+          const unread = hasUnreadThread(o, "cliente");
           const st = ORDER_STEPS[orderStatusIndex(o.status)];
           return `<tr class="${unread?'row-unread':''}"><td class="mono">${esc(o.numero)}</td><td class="mono">${brl(o.valor)}</td><td><span class="badge ${ORDER_STATUS_BADGE_CLASS[o.status]}">${st.label}</span></td><td>${fmtDate(o.createdAt)}</td>
           <td><button class="btn btn-ghost btn-sm" data-nav="#/pedido/${o.id}">Acompanhar →</button>${unread?`<span class="row-unread-badge">🔔 Nova mensagem</span>`:""}</td></tr>`;
@@ -1250,23 +1284,29 @@
         ${p?`<div class="summary-row"><span>${esc(p.nome)}</span><span>${brl(o.valor)}</span></div>`:""}
         <div class="summary-row"><span>Pedido realizado em</span><span>${fmtDate(o.createdAt)}</span></div>
       </div>
+      ${threadChatHtml(o, isAdmin, "pedido", "Conversa sobre o pedido", "Tire dúvidas com a nossa equipe sobre este pedido específico.")}
+    `;
+  }
+
+  function threadChatHtml(entity, isAdmin, tipo, titulo, subtitulo){
+    return `
       <div class="card" style="margin-top:20px;overflow:hidden;">
         <div style="padding:18px 20px 6px;">
-          <h3>Conversa sobre o pedido</h3>
-          <p style="color:var(--text-2);font-size:.83rem;margin-top:2px;">${isAdmin ? "Fale diretamente com o cliente sobre este pedido." : "Tire dúvidas com a nossa equipe sobre este pedido específico."}</p>
+          <h3>${esc(titulo)}</h3>
+          <p style="color:var(--text-2);font-size:.83rem;margin-top:2px;">${isAdmin ? "Fale diretamente com o cliente sobre este assunto." : esc(subtitulo)}</p>
         </div>
-        <div class="chat-log" id="orderChatLog" style="height:260px;">
-          ${renderOrderChatMessages(o, isAdmin)}
+        <div class="chat-log" id="threadChatLog" style="height:260px;">
+          ${renderThreadChatMessages(entity, isAdmin)}
         </div>
-        <form class="chat-input" id="orderChatForm" data-order-id="${o.id}">
-          <input id="orderChatInput" placeholder="${isAdmin ? "Responder ao cliente..." : "Escreva sua mensagem..."}" required>
+        <form class="chat-input" id="threadChatForm" data-type="${tipo}" data-id="${entity.id}">
+          <input id="threadChatInput" placeholder="${isAdmin ? "Responder ao cliente..." : "Escreva sua mensagem..."}" required>
           <button class="btn btn-primary" type="submit">Enviar</button>
         </form>
       </div>
     `;
   }
 
-  function renderOrderChatMessages(o, isAdmin){
+  function renderThreadChatMessages(o, isAdmin){
     const chat = o.chat || [];
     if(!chat.length) return `<p style="color:var(--text-2);font-size:.85rem;padding:14px 4px;">Nenhuma mensagem ainda.</p>`;
     return chat.map(m=>{
@@ -1330,17 +1370,23 @@
   }
 
   function viewAdminOrcamentos(){
-    const all = [...db.quotes].sort((a,b)=> b.createdAt.localeCompare(a.createdAt));
+    const all = [...db.quotes].sort((a,b)=>{
+      const ua = hasUnreadThread(a,"admin"), ub = hasUnreadThread(b,"admin");
+      if(ua !== ub) return ua ? -1 : 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
     if(!all.length) return `<div class="page-head"><div><span class="eyebrow">Administração</span><h1>Orçamentos recebidos</h1></div></div>` + emptyState("Nenhum orçamento solicitado ainda.", "#/admin/catalogo", "Ver catálogo");
+    const unreadTotal = all.filter(q=>hasUnreadThread(q,"admin")).length;
     return `
-      <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Orçamentos recebidos</h1><p>${all.length} solicitações no total.</p></div></div>
+      <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Orçamentos recebidos</h1><p>${all.length} solicitações no total.${unreadTotal?` <b style="color:var(--danger);">${unreadTotal} com mensagem nova</b> — listados primeiro.`:""}</p></div></div>
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Cliente</th><th>Produto</th><th>Valor</th><th>Status</th><th>Data</th><th></th></tr></thead>
         <tbody>${all.map(q=>{
           const p = getProduct(q.productId); const cl = db.users.find(u=>u.id===q.clientId);
           const st = QUOTE_STATUS_LABEL[q.status];
-          return `<tr><td class="mono">${esc(q.numero)}</td><td>${esc(cl?cl.nome:"—")}</td><td>${esc(p.nome)}</td><td class="mono">${brl(q.valor)}</td><td><span class="badge ${st.cls}">${st.label}</span></td><td>${fmtDate(q.createdAt)}</td>
-          <td>${q.status==="encaminhado_representante"?`<button class="btn btn-secondary btn-sm" data-action="atender-orcamento" data-id="${q.id}">Marcar como atendido</button>`:""}</td></tr>`;
+          const unread = hasUnreadThread(q,"admin");
+          return `<tr class="${unread?'row-unread':''}"><td class="mono">${esc(q.numero)}</td><td>${esc(cl?cl.nome:"—")}</td><td>${esc(p.nome)}</td><td class="mono">${brl(q.valor)}</td><td><span class="badge ${st.cls}">${st.label}</span></td><td>${fmtDate(q.createdAt)}</td>
+          <td class="table-actions">${q.status==="encaminhado_representante"?`<button class="btn btn-secondary btn-sm" data-action="atender-orcamento" data-id="${q.id}">Marcar como atendido</button>`:""}<button class="btn btn-ghost btn-sm" data-nav="#/orcamento/${q.id}">💬 Chat</button>${unread?`<span class="row-unread-badge">🔔 Nova</span>`:""}</td></tr>`;
         }).join("")}</tbody>
       </table></div>
     `;
@@ -1348,12 +1394,12 @@
 
   function viewAdminPedidos(){
     const all = [...db.orders].sort((a,b)=>{
-      const ua = hasUnreadOrder(a,"admin"), ub = hasUnreadOrder(b,"admin");
+      const ua = hasUnreadThread(a,"admin"), ub = hasUnreadThread(b,"admin");
       if(ua !== ub) return ua ? -1 : 1;
       return b.createdAt.localeCompare(a.createdAt);
     });
     if(!all.length) return `<div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1></div></div>` + emptyState("Nenhum pedido confirmado ainda.", "#/admin/catalogo", "Ver catálogo");
-    const unreadTotal = all.filter(o=>hasUnreadOrder(o,"admin")).length;
+    const unreadTotal = all.filter(o=>hasUnreadThread(o,"admin")).length;
     return `
       <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1><p>${all.length} pedidos no total.${unreadTotal?` <b style="color:var(--danger);">${unreadTotal} com mensagem nova</b> — listados primeiro.`:""}</p></div></div>
       <div class="table-wrap"><table>
@@ -1362,7 +1408,7 @@
           const cl = db.users.find(u=>u.id===o.clientId);
           const idx = orderStatusIndex(o.status);
           const next = ORDER_STEPS[idx+1];
-          const unread = hasUnreadOrder(o,"admin");
+          const unread = hasUnreadThread(o,"admin");
           return `<tr class="${unread?'row-unread':''}"><td class="mono">${esc(o.numero)}</td><td>${esc(cl?cl.nome:"—")}</td><td class="mono">${brl(o.valor)}</td><td><span class="badge ${ORDER_STATUS_BADGE_CLASS[o.status]}">${ORDER_STEPS[idx].label}</span></td><td>${fmtDate(o.createdAt)}</td>
           <td class="table-actions">${next?`<button class="btn btn-secondary btn-sm" data-action="avancar-pedido" data-id="${o.id}">Avançar para "${next.label}"</button>`:'<span style="color:var(--text-2);font-size:.8rem;">Concluído</span>'}<button class="btn btn-ghost btn-sm" data-nav="#/pedido/${o.id}">💬 Chat</button>${unread?`<span class="row-unread-badge">🔔 Nova</span>`:""}</td></tr>`;
         }).join("")}</tbody>
@@ -1598,22 +1644,23 @@
       render();
     }
 
-    if(e.target.id === "orderChatForm"){
+    if(e.target.id === "threadChatForm"){
       e.preventDefault();
-      const orderId = e.target.dataset.orderId;
-      const o = db.orders.find(x=>x.id===orderId);
+      const entityType = e.target.dataset.type;
+      const entityId = e.target.dataset.id;
+      const entity = entityType === "orcamento" ? db.quotes.find(x=>x.id===entityId) : db.orders.find(x=>x.id===entityId);
       const me = currentUser();
-      if(!o || !me) return;
+      if(!entity || !me) return;
       const isAdmin = me.role === "admin";
-      if(!isAdmin && o.clientId !== me.id) return;
-      const input = document.getElementById("orderChatInput");
+      if(!isAdmin && entity.clientId !== me.id) return;
+      const input = document.getElementById("threadChatInput");
       const texto = input.value.trim();
       if(!texto) return;
-      o.chat = o.chat || [];
-      o.chat.push({from: isAdmin ? "admin" : "cliente", texto, ts: new Date().toISOString()});
+      entity.chat = entity.chat || [];
+      entity.chat.push({from: isAdmin ? "admin" : "cliente", texto, ts: new Date().toISOString()});
       saveDb(db);
-      const log = document.getElementById("orderChatLog");
-      log.innerHTML = renderOrderChatMessages(o, isAdmin);
+      const log = document.getElementById("threadChatLog");
+      log.innerHTML = renderThreadChatMessages(entity, isAdmin);
       log.scrollTop = log.scrollHeight;
       input.value = "";
       input.focus();
@@ -1657,14 +1704,14 @@
       }
     }
     if(path === "orcamento" && parts[1] === "chat"){ bindChatInputs(); }
-    if(path === "pedido" && parts[1]){
-      const log = document.getElementById("orderChatLog");
+    if((path === "pedido" || path === "orcamento") && parts[1] && parts[1] !== "chat"){
+      const log = document.getElementById("threadChatLog");
       if(log) log.scrollTop = log.scrollHeight;
-      const o = db.orders.find(x=>x.id===parts[1]);
+      const entity = path === "orcamento" ? db.quotes.find(x=>x.id===parts[1]) : db.orders.find(x=>x.id===parts[1]);
       const me = currentUser();
-      if(o && me){
+      if(entity && me){
         const role = me.role === "admin" ? "admin" : "cliente";
-        if(role === "admin" || o.clientId === me.id) markOrderSeen(o, role);
+        if(role === "admin" || entity.clientId === me.id) markThreadSeen(entity, role);
       }
     }
   }
