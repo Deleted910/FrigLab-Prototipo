@@ -324,7 +324,8 @@
   function seedDb(){
     return {
       users: [
-        { id:"u_admin", nome:"Equipe FrigLab", email:"admin@friglab.com", senha:"admin123", role:"admin" }
+        { id:"u_admin", nome:"Equipe FrigLab", email:"admin@friglab.com", senha:"admin123", role:"admin" },
+        { id:"u_demo_cliente", nome:"Cliente Demonstração", email:"cliente@friglab.com", senha:"cliente123", role:"cliente" }
       ],
       products: [
         { id:"p1", nome:"Câmara Fria Modular", categoria:"Câmaras Frigoríficas", sku:"CF-MOD-220", precoBase:18500, unidade:"módulo", faixaTemp:"-5°C a 8°C", capacidade:"12 a 40 m³", dimensoesRef:"2,2 x 3,0 x 2,4 m (módulo base)", descricao:"Câmara fria modular com painéis isotérmicos de poliuretano injetado, indicada para armazenamento de perecíveis." },
@@ -334,18 +335,53 @@
         { id:"p5", nome:"Cortina de Ar Industrial", categoria:"Climatização", sku:"CA-IND-100", precoBase:2100, unidade:"unidade", faixaTemp:"Ambiente", capacidade:"Vão de até 2,0 m", dimensoesRef:"2,0 x 0,25 x 0,3 m", descricao:"Cortina de ar para vedação térmica de entradas de câmaras frias e salas refrigeradas." },
         { id:"p6", nome:"Painel Isotérmico PIR", categoria:"Isolamento Térmico", sku:"PI-PIR-060", precoBase:320, unidade:"m²", faixaTemp:"-30°C a 60°C", capacidade:"Espessura 60 a 150 mm", dimensoesRef:"Sob medida", descricao:"Painel isotérmico de poliisocianurato (PIR) para vedação de câmaras e salas frias." }
       ],
-      quotes: [],
-      orders: [],
-      seq:{ quote:1, order:1 }
+      quotes: seedQuotes(),
+      orders: seedOrders(),
+      seq:{ quote:7, order:4 }
     };
+  }
+
+  function seedQuotes(){
+    return [
+      { id:"q_demo1", numero:"ORC-0001", clientId:"u_demo_cliente", productId:"p2", quantidade:3, aplicacao:"Açougue de bairro com alto giro de carnes resfriadas", valor:19344, status:"pendente", createdAt:"2026-09-01T10:15:00" },
+      { id:"q_demo2", numero:"ORC-0002", clientId:"u_demo_cliente", productId:"p3", quantidade:1, aplicacao:"Indústria de bebidas, resfriamento de linha de envase", valor:43680, status:"aprovado_cliente", createdAt:"2026-09-02T14:30:00" },
+      { id:"q_demo3", numero:"ORC-0003", clientId:"u_demo_cliente", productId:"p4", quantidade:2, aplicacao:"Distribuidora de laticínios, armazenamento de congelados", valor:9984, status:"encaminhado_representante", createdAt:"2026-08-28T09:00:00" },
+      { id:"q_demo4", numero:"ORC-0004", clientId:"u_demo_cliente", productId:"p1", quantidade:1, aplicacao:"Armazenamento de laticínios resfriados", valor:19240, status:"convertido", createdAt:"2026-08-20T11:00:00" },
+      { id:"q_demo5", numero:"ORC-0005", clientId:"u_demo_cliente", productId:"p6", quantidade:40, aplicacao:"Vedação de câmara fria em obra nova", valor:13312, status:"convertido", createdAt:"2026-08-15T16:00:00" },
+      { id:"q_demo6", numero:"ORC-0006", clientId:"u_demo_cliente", productId:"p5", quantidade:2, aplicacao:"Entrada de câmara fria em mercado comercial", valor:4368, status:"convertido", createdAt:"2026-08-10T13:00:00" }
+    ];
+  }
+  function seedOrders(){
+    return [
+      { id:"o_demo1", numero:"FRIG-2026-00001", quoteId:"q_demo4", clientId:"u_demo_cliente", valor:19240, status:"em_producao", createdAt:"2026-08-21T09:00:00" },
+      { id:"o_demo2", numero:"FRIG-2026-00002", quoteId:"q_demo5", clientId:"u_demo_cliente", valor:13312, status:"em_transporte", createdAt:"2026-08-16T10:00:00" },
+      { id:"o_demo3", numero:"FRIG-2026-00003", quoteId:"q_demo6", clientId:"u_demo_cliente", valor:4368, status:"entregue", createdAt:"2026-08-11T15:00:00" }
+    ];
   }
 
   function loadDb(){
     try{
       const raw = localStorage.getItem(DB_KEY);
       if(!raw) { const s = seedDb(); saveDb(s); return s; }
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      migrateDb(parsed);
+      return parsed;
     }catch(e){ const s = seedDb(); saveDb(s); return s; }
+  }
+  function migrateDb(dbObj){
+    let changed = false;
+    if(!dbObj.users.some(u => u.id === "u_demo_cliente")){
+      dbObj.users.push({ id:"u_demo_cliente", nome:"Cliente Demonstração", email:"cliente@friglab.com", senha:"cliente123", role:"cliente" });
+      changed = true;
+    }
+    if(!dbObj.quotes.some(q => q.id === "q_demo1")){
+      dbObj.quotes.push(...seedQuotes());
+      dbObj.orders.push(...seedOrders());
+      dbObj.seq.quote = Math.max(dbObj.seq.quote, 7);
+      dbObj.seq.order = Math.max(dbObj.seq.order, 4);
+      changed = true;
+    }
+    if(changed) saveDb(dbObj);
   }
   function saveDb(db){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 
@@ -485,6 +521,8 @@
             </button>
             <div class="user-menu" id="userMenu" hidden>
               <div style="padding:8px 12px 10px;font-size:.78rem;color:var(--text-2);border-bottom:1px solid var(--border);margin-bottom:4px;">${esc(user.email)}</div>
+              <button data-action="switch-role">🔁 ${isAdmin?"Ver como Cliente (demo)":"Ver como Administrador"}</button>
+              <hr>
               <button data-action="logout" class="danger">🚪 Sair</button>
             </div>
           </div>
@@ -515,7 +553,11 @@
         <form class="auth-form" id="loginForm" novalidate>
           <h1>Entrar</h1>
           <p class="sub">Acesse sua conta para solicitar ou acompanhar orçamentos.</p>
-          <div class="demo-hint">Conta de demonstração (admin): <b class="mono">admin@friglab.com</b> / <b class="mono">admin123</b></div>
+          <div class="demo-hint">
+            Conta admin: <b class="mono">admin@friglab.com</b> / <b class="mono">admin123</b><br>
+            Conta cliente: <b class="mono">cliente@friglab.com</b> / <b class="mono">cliente123</b><br>
+            <span style="opacity:.85;">Depois de entrar, dá pra alternar entre as duas visões pelo menu do usuário (🔁).</span>
+          </div>
           <div class="field" id="f_email">
             <label for="in_email">E-mail</label>
             <input type="email" id="in_email" autocomplete="username" placeholder="voce@empresa.com">
@@ -1036,6 +1078,17 @@
     const act = action.dataset.action;
 
     if(act === "logout"){ setSession(null); chatState=null; go("#/login"); showToast("Sessão encerrada."); return; }
+
+    if(act === "switch-role"){
+      const me = currentUser();
+      const targetId = me.role === "admin" ? "u_demo_cliente" : "u_admin";
+      setSession({userId: targetId});
+      chatState = null;
+      const target = db.users.find(u=>u.id===targetId);
+      go(target.role === "admin" ? "#/admin/catalogo" : "#/catalogo");
+      showToast("Agora vendo como " + (target.role==="admin" ? "Administrador" : "Cliente") + ".");
+      return;
+    }
 
     if(act === "pedir-orcamento"){ chatState=null; go("#/orcamento/chat?produto="+action.dataset.id); return; }
     if(act === "ver-orcamento"){ go("#/orcamento/"+action.dataset.id); return; }
