@@ -211,11 +211,13 @@
   .auth-form>p.sub{color:var(--text-2); margin-bottom:26px; font-size:.9rem;}
   .demo-hint{background:var(--accent-tint); border:1px dashed var(--accent); border-radius:var(--radius-s); padding:10px 12px; font-size:.78rem; color:var(--accent-strong); margin-bottom:20px;}
 
-  .grid-products{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:18px;}
-  .product-card{padding:20px; display:flex; flex-direction:column; gap:12px;}
+  .grid-products{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px;}
+  .product-card{padding:0; display:flex; flex-direction:column; overflow:hidden;}
+  .product-card .thumb{width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:var(--surface-2); border-bottom:1px solid var(--border);}
+  .product-card .body{padding:16px 18px 18px; display:flex; flex-direction:column; gap:4px; flex:1;}
   .product-card .cat{font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--accent-strong);}
-  .product-card h3{font-size:1.05rem;}
-  .product-card .sku{font-size:.72rem; color:var(--text-2);}
+  .product-card h3{font-size:1.08rem; margin-top:1px;}
+  .product-card .sku{font-size:.72rem; color:var(--text-2); margin-bottom:10px;}
   .product-card .desc{font-size:.84rem; color:var(--text-2); flex:1;}
   .specs{display:flex; flex-direction:column; gap:6px; font-size:.78rem; padding:12px; background:var(--surface-2); border-radius:var(--radius-s);}
   .specs div{display:flex; justify-content:space-between; gap:10px;}
@@ -308,6 +310,16 @@
 
   .footer-note{margin-top:40px; padding-top:20px; border-top:1px solid var(--border); font-size:.76rem; color:var(--text-2); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
   .inline-form{background:var(--surface-2); border-radius:var(--radius-m); padding:18px; margin-top:14px;}
+
+  .img-upload-row{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
+  .img-upload-row .preview{width:96px; height:72px; border-radius:var(--radius-s); object-fit:cover; border:1px solid var(--border); background:var(--surface-2); flex:none;}
+  .img-upload-row .controls{display:flex; flex-direction:column; gap:6px;}
+  .table-thumb{width:52px; height:40px; border-radius:6px; object-fit:cover; border:1px solid var(--border); flex:none;}
+  .prod-cell{display:flex; align-items:center; gap:12px;}
+
+  .detail-hero{display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:start;}
+  @media (max-width:800px){.detail-hero{grid-template-columns:1fr;}}
+  .detail-hero .thumb-lg{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:var(--radius-l); border:1px solid var(--border); box-shadow:var(--shadow);}
 </style>
 
 <div id="app"></div>
@@ -328,12 +340,12 @@
         { id:"u_demo_cliente", nome:"Cliente Demonstração", email:"cliente@friglab.com", senha:"cliente123", role:"cliente" }
       ],
       products: [
-        { id:"p1", nome:"Câmara Fria Modular", categoria:"Câmaras Frigoríficas", sku:"CF-MOD-220", precoBase:18500, unidade:"módulo", faixaTemp:"-5°C a 8°C", capacidade:"12 a 40 m³", dimensoesRef:"2,2 x 3,0 x 2,4 m (módulo base)", descricao:"Câmara fria modular com painéis isotérmicos de poliuretano injetado, indicada para armazenamento de perecíveis." },
-        { id:"p2", nome:"Balcão Refrigerado Expositor", categoria:"Balcões e Expositores", sku:"BE-EXP-150", precoBase:6200, unidade:"unidade", faixaTemp:"0°C a 4°C", capacidade:"150 a 300 L", dimensoesRef:"1,5 x 0,7 x 1,2 m", descricao:"Balcão expositor refrigerado com vidro curvo frontal, indicado para açougues e padarias." },
-        { id:"p3", nome:"Chiller Industrial", categoria:"Resfriamento Industrial", sku:"CH-IND-050", precoBase:42000, unidade:"unidade", faixaTemp:"4°C a 12°C (água gelada)", capacidade:"5 a 50 TR", dimensoesRef:"Sob projeto", descricao:"Unidade chiller para resfriamento de processos industriais e climatização de ambientes." },
-        { id:"p4", nome:"Freezer Horizontal Comercial", categoria:"Freezers", sku:"FZ-HOR-400", precoBase:4800, unidade:"unidade", faixaTemp:"-18°C a -22°C", capacidade:"400 L", dimensoesRef:"1,3 x 0,75 x 0,9 m", descricao:"Freezer horizontal para congelados, uso comercial em mercados e distribuidoras." },
-        { id:"p5", nome:"Cortina de Ar Industrial", categoria:"Climatização", sku:"CA-IND-100", precoBase:2100, unidade:"unidade", faixaTemp:"Ambiente", capacidade:"Vão de até 2,0 m", dimensoesRef:"2,0 x 0,25 x 0,3 m", descricao:"Cortina de ar para vedação térmica de entradas de câmaras frias e salas refrigeradas." },
-        { id:"p6", nome:"Painel Isotérmico PIR", categoria:"Isolamento Térmico", sku:"PI-PIR-060", precoBase:320, unidade:"m²", faixaTemp:"-30°C a 60°C", capacidade:"Espessura 60 a 150 mm", dimensoesRef:"Sob medida", descricao:"Painel isotérmico de poliisocianurato (PIR) para vedação de câmaras e salas frias." }
+        { id:"p1", nome:"Câmara Fria Modular", categoria:"Câmaras Frigoríficas", sku:"CF-MOD-220", precoBase:18500, unidade:"módulo", faixaTemp:"-5°C a 8°C", capacidade:"12 a 40 m³", dimensoesRef:"2,2 x 3,0 x 2,4 m (módulo base)", descricao:"Câmara fria modular com painéis isotérmicos de poliuretano injetado, indicada para armazenamento de perecíveis.", imagem: PRODUCT_ART.p1 },
+        { id:"p2", nome:"Balcão Refrigerado Expositor", categoria:"Balcões e Expositores", sku:"BE-EXP-150", precoBase:6200, unidade:"unidade", faixaTemp:"0°C a 4°C", capacidade:"150 a 300 L", dimensoesRef:"1,5 x 0,7 x 1,2 m", descricao:"Balcão expositor refrigerado com vidro curvo frontal, indicado para açougues e padarias.", imagem: PRODUCT_ART.p2 },
+        { id:"p3", nome:"Chiller Industrial", categoria:"Resfriamento Industrial", sku:"CH-IND-050", precoBase:42000, unidade:"unidade", faixaTemp:"4°C a 12°C (água gelada)", capacidade:"5 a 50 TR", dimensoesRef:"Sob projeto", descricao:"Unidade chiller para resfriamento de processos industriais e climatização de ambientes.", imagem: PRODUCT_ART.p3 },
+        { id:"p4", nome:"Freezer Horizontal Comercial", categoria:"Freezers", sku:"FZ-HOR-400", precoBase:4800, unidade:"unidade", faixaTemp:"-18°C a -22°C", capacidade:"400 L", dimensoesRef:"1,3 x 0,75 x 0,9 m", descricao:"Freezer horizontal para congelados, uso comercial em mercados e distribuidoras.", imagem: PRODUCT_ART.p4 },
+        { id:"p5", nome:"Cortina de Ar Industrial", categoria:"Climatização", sku:"CA-IND-100", precoBase:2100, unidade:"unidade", faixaTemp:"Ambiente", capacidade:"Vão de até 2,0 m", dimensoesRef:"2,0 x 0,25 x 0,3 m", descricao:"Cortina de ar para vedação térmica de entradas de câmaras frias e salas refrigeradas.", imagem: PRODUCT_ART.p5 },
+        { id:"p6", nome:"Painel Isotérmico PIR", categoria:"Isolamento Térmico", sku:"PI-PIR-060", precoBase:320, unidade:"m²", faixaTemp:"-30°C a 60°C", capacidade:"Espessura 60 a 150 mm", dimensoesRef:"Sob medida", descricao:"Painel isotérmico de poliisocianurato (PIR) para vedação de câmaras e salas frias.", imagem: PRODUCT_ART.p6 }
       ],
       quotes: seedQuotes(),
       orders: seedOrders(),
@@ -381,9 +393,39 @@
       dbObj.seq.order = Math.max(dbObj.seq.order, 4);
       changed = true;
     }
+    dbObj.products.forEach(p => {
+      if(!p.imagem){ p.imagem = PRODUCT_ART[p.id] || genericArt(); changed = true; }
+    });
     if(changed) saveDb(dbObj);
   }
-  function saveDb(db){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
+  function genericArt(){
+    return svgUri(`
+      <rect x="110" y="90" width="180" height="140" rx="10"/>
+      <circle cx="200" cy="145" r="26"/>
+      <path d="M120 220 L165 175 L200 205 L245 165 L280 220 Z"/>`);
+  }
+  function saveDb(db){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); return true; }catch(e){ return false; } }
+
+  /* Redimensiona/comprime uma imagem enviada pelo admin antes de guardar (mantém o localStorage leve) */
+  function resizeImageFile(file, maxW, cb){
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      const img = new Image();
+      img.onload = function(){
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        cb(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = function(){ showToast("Não foi possível ler essa imagem."); };
+      img.src = ev.target.result;
+    };
+    reader.onerror = function(){ showToast("Não foi possível ler esse arquivo."); };
+    reader.readAsDataURL(file);
+  }
 
   let db = loadDb();
 
@@ -416,6 +458,64 @@
 
   /* ===================== Helpers ===================== */
   function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+  /* ---- Ilustrações padrão dos produtos (usadas até o admin subir uma foto real) ---- */
+  function svgUri(inner){
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+      <rect width="400" height="300" fill="#0f2226"/>
+      <rect width="400" height="300" fill="url(#g)"/>
+      <defs><linearGradient id="g" x1="0" y1="0" x2="400" y2="300">
+        <stop offset="0" stop-color="#173c41"/><stop offset="1" stop-color="#0b1a1d"/>
+      </linearGradient></defs>
+      <g fill="none" stroke="#8fd9df" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">${inner}</g>
+    </svg>`;
+    return "data:image/svg+xml," + encodeURIComponent(svg);
+  }
+  const PRODUCT_ART = {
+    p1: svgUri(`
+      <rect x="70" y="90" width="260" height="150" rx="6"/>
+      <line x1="70" y1="130" x2="330" y2="130"/>
+      <rect x="180" y="150" width="40" height="90"/>
+      <g stroke="#e8a94a" transform="translate(300,70)">
+        <line x1="0" y1="-16" x2="0" y2="16"/><line x1="-14" y1="-8" x2="14" y2="8"/><line x1="-14" y1="8" x2="14" y2="-8"/>
+      </g>`),
+    p2: svgUri(`
+      <path d="M70 210 L70 150 L160 110 L330 110 L330 210 Z"/>
+      <line x1="70" y1="210" x2="330" y2="210"/>
+      <line x1="160" y1="150" x2="330" y2="150"/>
+      <line x1="160" y1="180" x2="330" y2="180"/>
+      <circle cx="200" cy="165" r="7" fill="#e8a94a" stroke="none"/>
+      <circle cx="230" cy="195" r="7" fill="#e8a94a" stroke="none"/>`),
+    p3: svgUri(`
+      <rect x="120" y="70" width="160" height="160" rx="8"/>
+      <circle cx="200" cy="130" r="34"/>
+      <line x1="200" y1="96" x2="200" y2="164"/><line x1="166" y1="130" x2="234" y2="130"/>
+      <line x1="178" y1="108" x2="222" y2="152"/><line x1="222" y1="108" x2="178" y2="152"/>
+      <line x1="150" y1="200" x2="250" y2="200"/>
+      <line x1="150" y1="215" x2="250" y2="215"/>
+      <circle cx="200" cy="70" r="6" fill="#e8a94a" stroke="none"/>`),
+    p4: svgUri(`
+      <rect x="70" y="140" width="260" height="80" rx="10"/>
+      <rect x="90" y="120" width="220" height="24" rx="6"/>
+      <line x1="90" y1="230" x2="90" y2="245"/><line x1="310" y1="230" x2="310" y2="245"/>
+      <g stroke="#e8a94a" transform="translate(200,180)">
+        <line x1="0" y1="-14" x2="0" y2="14"/><line x1="-12" y1="-7" x2="12" y2="7"/><line x1="-12" y1="7" x2="12" y2="-7"/>
+      </g>`),
+    p5: svgUri(`
+      <line x1="110" y1="70" x2="110" y2="230"/>
+      <line x1="290" y1="70" x2="290" y2="230"/>
+      <line x1="110" y1="70" x2="290" y2="70"/>
+      <path d="M150 100 Q160 130 150 160 Q140 190 150 220" stroke-dasharray="6 10"/>
+      <path d="M200 100 Q210 130 200 160 Q190 190 200 220" stroke-dasharray="6 10"/>
+      <path d="M250 100 Q260 130 250 160 Q240 190 250 220" stroke-dasharray="6 10"/>`),
+    p6: svgUri(`
+      <g transform="rotate(-8 200 150)">
+        <rect x="90" y="120" width="220" height="30" rx="4"/>
+        <rect x="90" y="155" width="220" height="30" rx="4"/>
+        <rect x="90" y="190" width="220" height="30" rx="4"/>
+        <line x1="90" y1="135" x2="310" y2="135" stroke="#e8a94a"/>
+      </g>`)
+  };
   function brl(n){ return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n); }
   function initials(name){ return (name||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
   function uid(prefix){ return prefix + "_" + Math.random().toString(36).slice(2,9); }
@@ -474,6 +574,7 @@
     if(path === "login") html = viewLogin();
     else if(path === "cadastro") html = viewCadastro();
     else if(path === "catalogo") html = withShell(viewCatalogo(), user, "catalogo");
+    else if(path === "produto" && parts[1]) html = withShell(viewProdutoDetalhe(parts[1]), user, "catalogo");
     else if(path === "orcamento" && parts[1] === "chat") html = withShell(viewChat(), user, "orcamentos");
     else if(path === "orcamento" && parts[1]) html = withShell(viewOrcamentoResumo(parts[1]), user, "orcamentos");
     else if(path === "meus-orcamentos") html = withShell(viewMeusOrcamentos(user), user, "orcamentos");
@@ -639,19 +740,41 @@
       <div class="grid-products">
         ${db.products.map(p => `
           <div class="card product-card">
-            <div><span class="cat">${esc(p.categoria)}</span><h3>${esc(p.nome)}</h3><span class="sku mono">SKU ${esc(p.sku)}</span></div>
-            <p class="desc">${esc(p.descricao)}</p>
-            <div class="specs">
-              <div><span>Faixa de temperatura</span><b>${esc(p.faixaTemp)}</b></div>
-              <div><span>Capacidade</span><b>${esc(p.capacidade)}</b></div>
-              <div><span>Dimensões de referência</span><b>${esc(p.dimensoesRef)}</b></div>
+            <img class="thumb" src="${p.imagem || genericArt()}" alt="Foto ilustrativa de ${esc(p.nome)}">
+            <div class="body">
+              <span class="cat">${esc(p.categoria)}</span>
+              <h3>${esc(p.nome)}</h3>
+              <span class="sku mono">SKU ${esc(p.sku)}</span>
+              <button class="btn btn-primary btn-block" data-nav="#/produto/${p.id}">Ver detalhes</button>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
-              <span class="price">${brl(p.precoBase)}<span style="font-size:.68rem;color:var(--text-2);font-weight:500;"> /${esc(p.unidade)} (base)</span></span>
-            </div>
-            <button class="btn btn-primary btn-block" data-action="pedir-orcamento" data-id="${p.id}">Solicitar orçamento com IA</button>
           </div>
         `).join("")}
+      </div>
+    `;
+  }
+
+  function viewProdutoDetalhe(id){
+    const p = db.products.find(x=>x.id===id);
+    if(!p) return emptyState("Produto não encontrado.", "#/catalogo", "Voltar ao catálogo");
+    return `
+      <button class="btn btn-secondary" data-nav="#/catalogo" style="margin-bottom:20px;">← Voltar ao catálogo</button>
+      <div class="detail-hero">
+        <img class="thumb-lg" src="${p.imagem || genericArt()}" alt="Foto ilustrativa de ${esc(p.nome)}">
+        <div>
+          <span class="eyebrow">${esc(p.categoria)}</span>
+          <h1 style="margin-bottom:4px;">${esc(p.nome)}</h1>
+          <span class="sku mono" style="color:var(--text-2);">SKU ${esc(p.sku)}</span>
+          <p style="margin-top:14px;color:var(--text-2);">${esc(p.descricao)}</p>
+          <div class="specs" style="margin-top:18px;">
+            <div><span>Faixa de temperatura</span><b>${esc(p.faixaTemp)}</b></div>
+            <div><span>Capacidade</span><b>${esc(p.capacidade)}</b></div>
+            <div><span>Dimensões de referência</span><b>${esc(p.dimensoesRef)}</b></div>
+          </div>
+          <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;">
+            <span class="price" style="font-size:1.3rem;">${brl(p.precoBase)}<span style="font-size:.7rem;color:var(--text-2);font-weight:500;"> /${esc(p.unidade)} (base)</span></span>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:18px;" data-action="pedir-orcamento" data-id="${p.id}">Solicitar orçamento com IA</button>
+        </div>
       </div>
     `;
   }
@@ -969,17 +1092,27 @@
       <div id="produtoFormWrap"></div>
       <div class="table-wrap"><table>
         <thead><tr><th>Produto</th><th>Categoria</th><th>SKU</th><th>Preço base</th><th></th></tr></thead>
-        <tbody>${db.products.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.categoria)}</td><td class="mono">${esc(p.sku)}</td><td class="mono">${brl(p.precoBase)}</td>
+        <tbody>${db.products.map(p=>`<tr><td><div class="prod-cell"><img class="table-thumb" src="${p.imagem || genericArt()}" alt=""><span>${esc(p.nome)}</span></div></td><td>${esc(p.categoria)}</td><td class="mono">${esc(p.sku)}</td><td class="mono">${brl(p.precoBase)}</td>
         <td class="table-actions"><button class="btn btn-secondary btn-sm" data-action="editar-produto" data-id="${p.id}">Editar</button><button class="btn btn-danger btn-sm" data-action="remover-produto" data-id="${p.id}">Remover</button></td></tr>`).join("")}</tbody>
       </table></div>
     `;
   }
 
   function productForm(p){
-    p = p || {id:"", nome:"", categoria:"", sku:"", precoBase:"", unidade:"unidade", faixaTemp:"", capacidade:"", dimensoesRef:"", descricao:""};
+    p = p || {id:"", nome:"", categoria:"", sku:"", precoBase:"", unidade:"unidade", faixaTemp:"", capacidade:"", dimensoesRef:"", descricao:"", imagem: genericArt()};
     return `
       <form class="inline-form" id="produtoForm" data-id="${p.id}">
         <h3 style="margin-bottom:14px;">${p.id?"Editar produto":"Novo produto"}</h3>
+        <div class="img-upload-row">
+          <img class="preview" id="pf_imagem_preview" src="${p.imagem || genericArt()}" alt="Prévia da imagem do produto">
+          <div class="controls">
+            <label style="font-size:.82rem;font-weight:600;">Foto do produto</label>
+            <input type="file" id="pf_imagem_file" accept="image/png,image/jpeg,image/webp">
+            <span class="hint">JPG, PNG ou WEBP — a imagem é redimensionada automaticamente.</span>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="resetar-imagem-produto" style="align-self:flex-start;">Usar ilustração padrão</button>
+          </div>
+          <input type="hidden" id="pf_imagem" value="${esc(p.imagem || genericArt())}">
+        </div>
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;">
           <div class="field"><label>Nome</label><input id="pf_nome" value="${esc(p.nome)}" required></div>
           <div class="field"><label>SKU</label><input id="pf_sku" value="${esc(p.sku)}" required></div>
@@ -1120,6 +1253,14 @@
       return;
     }
     if(act === "cancelar-produto"){ document.getElementById("produtoFormWrap").innerHTML = ""; return; }
+    if(act === "resetar-imagem-produto"){
+      const formEl = document.getElementById("produtoForm");
+      const pid = formEl ? formEl.dataset.id : "";
+      const defaultArt = PRODUCT_ART[pid] || genericArt();
+      document.getElementById("pf_imagem").value = defaultArt;
+      document.getElementById("pf_imagem_preview").src = defaultArt;
+      return;
+    }
     if(act === "remover-produto"){
       db.products = db.products.filter(p=>p.id!==action.dataset.id); saveDb(db); render(); showToast("Produto removido.");
       return;
@@ -1139,6 +1280,18 @@
   document.addEventListener("click", function(e){
     if(e.target.closest("[data-action='chat-qtd']")){ handleChatSubmit(e.target.dataset.v); }
     if(e.target.closest("[data-action='chat-app']")){ handleChatSubmit(e.target.dataset.v); }
+  });
+
+  document.addEventListener("change", function(e){
+    if(e.target.id === "pf_imagem_file"){
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      if(!file.type.startsWith("image/")){ showToast("Selecione um arquivo de imagem."); return; }
+      resizeImageFile(file, 900, function(dataUrl){
+        document.getElementById("pf_imagem").value = dataUrl;
+        document.getElementById("pf_imagem_preview").src = dataUrl;
+      });
+    }
   });
 
   document.addEventListener("submit", function(e){
@@ -1191,11 +1344,20 @@
         faixaTemp: document.getElementById("pf_temp").value.trim(),
         capacidade: document.getElementById("pf_capacidade").value.trim(),
         dimensoesRef: document.getElementById("pf_dim").value.trim(),
-        descricao: document.getElementById("pf_desc").value.trim()
+        descricao: document.getElementById("pf_desc").value.trim(),
+        imagem: document.getElementById("pf_imagem").value || genericArt()
       };
-      if(id){ Object.assign(db.products.find(p=>p.id===id), data); showToast("Produto atualizado."); }
-      else { db.products.push(Object.assign({id:uid("p")}, data)); showToast("Produto criado."); }
-      saveDb(db); render();
+      const previous = id ? JSON.parse(JSON.stringify(db.products.find(p=>p.id===id))) : null;
+      if(id){ Object.assign(db.products.find(p=>p.id===id), data); }
+      else { db.products.push(Object.assign({id:uid("p")}, data)); }
+      const ok = saveDb(db);
+      if(!ok){
+        if(previous){ Object.assign(db.products.find(p=>p.id===id), previous); } else { db.products.pop(); }
+        showToast("A imagem é grande demais para salvar. Tente uma foto menor.");
+      } else {
+        showToast(id ? "Produto atualizado." : "Produto criado.");
+      }
+      render();
     }
 
     if(e.target.id === "pagamentoForm"){
