@@ -186,6 +186,17 @@
   .notif-item .notif-text{font-size:.85rem; color:var(--text); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
   .notif-empty{padding:24px 16px; text-align:center; font-size:.85rem; color:var(--text-2);}
 
+  .search-wrap{position:relative;}
+  .search-panel{
+    position:absolute; right:0; top:calc(100% + 8px); background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-m); box-shadow:var(--shadow); width:280px; padding:14px; z-index:30;
+  }
+  .search-panel form{display:flex; gap:8px;}
+  .search-panel input{flex:1; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:var(--radius-s); padding:9px 11px; font-size:.88rem;}
+  .search-panel input:focus{border-color:var(--accent);}
+  .search-active-note{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--accent-tint); color:var(--accent-strong); border-radius:var(--radius-s); padding:10px 14px; font-size:.86rem; margin-bottom:20px;}
+  .search-active-note button{background:none; border:none; color:var(--accent-strong); font-weight:700; text-decoration:underline; cursor:pointer; padding:0;}
+
   main{flex:1; width:100%;}
   .page{max-width:1180px; margin:0 auto; padding:40px 28px 80px;}
   .page-head{margin-bottom:28px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;}
@@ -750,10 +761,10 @@
       go("#/login");
       return false;
     }
-    if(PUBLIC_ROUTES.includes(route) || route === "#/"){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
+    if(PUBLIC_ROUTES.includes(route)){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
     if(user.role!=="admin" && ADMIN_ROUTES.includes(route)){ go("#/catalogo"); return false; }
     const isOrcamentoDetail = route.startsWith("#/orcamento/") && !route.startsWith("#/orcamento/chat");
-    if(user.role==="admin" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/") && !isOrcamentoDetail){ go("#/admin/catalogo"); return false; }
+    if(user.role==="admin" && route!=="#/" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/") && !isOrcamentoDetail){ go("#/admin/catalogo"); return false; }
     return true;
   }
 
@@ -769,7 +780,7 @@
     let html = "";
     const user = currentUser();
 
-    if(path === "" && !user) html = withPublicShell(viewHome(), "home");
+    if(path === "") html = user ? withShell(viewHome(), user, "home") : withPublicShell(viewHome(), "home");
     else if(path === "login") html = viewLogin();
     else if(path === "cadastro") html = viewCadastro();
     else if(path === "catalogo") html = user ? withShell(viewCatalogo(), user, "catalogo") : withPublicShell(viewCatalogo(), "catalogo");
@@ -804,11 +815,26 @@
           <button class="${activeKey==='catalogo'?'active':''}" data-nav="#/catalogo">Catálogo</button>
         </nav>
         <div class="topbar-right">
+          ${searchWidgetHtml("#/catalogo")}
           <button class="btn btn-secondary btn-sm" data-nav="#/login">Entrar</button>
           <button class="btn btn-primary btn-sm" data-nav="#/cadastro">Cadastre-se</button>
         </div>
       </div>
       <main><div class="page">${contentHtml}</div></main>
+    `;
+  }
+
+  function searchWidgetHtml(targetPath){
+    return `
+      <div class="search-wrap">
+        <button class="icon-btn" id="searchBtn" aria-haspopup="true" aria-expanded="false" aria-label="Pesquisar produtos">🔍</button>
+        <div class="search-panel" id="searchPanel" hidden role="dialog" aria-label="Pesquisar produtos">
+          <form id="searchForm" data-target="${targetPath}">
+            <input id="searchInput" placeholder="Buscar produto, categoria, SKU..." aria-label="Buscar produtos">
+            <button class="btn btn-primary btn-sm" type="submit">Ir</button>
+          </form>
+        </div>
+      </div>
     `;
   }
 
@@ -830,7 +856,7 @@
     const unread = unreadPedidos + unreadOrcamentos;
     return `
       <div class="topbar">
-        <div class="brand" data-nav="${isAdmin ? '#/admin/catalogo' : '#/catalogo'}" tabindex="0" role="link" aria-label="Ir para o catálogo"><span class="mark">❄</span><span>FrigLab<small>${isAdmin?"Painel administrativo":"Plataforma de orçamentos"}</small></span></div>
+        <div class="brand" data-nav="#/" tabindex="0" role="link" aria-label="Ir para o início"><span class="mark">❄</span><span>FrigLab<small>${isAdmin?"Painel administrativo":"Plataforma de orçamentos"}</small></span></div>
         <nav class="nav-links">
           ${nav.map(n => {
             let badge = 0;
@@ -840,6 +866,7 @@
           }).join("")}
         </nav>
         <div class="topbar-right">
+          ${searchWidgetHtml(isAdmin ? "#/admin/catalogo" : "#/catalogo")}
           <div class="notif-wrap">
             <button class="icon-btn bell-btn" id="notifBtn" aria-haspopup="true" aria-expanded="false" aria-label="Notificações de pedidos${unread>0?` (${unread} não lidas)`:""}">
               🔔${unread>0?`<span class="bell-dot">${unread}</span>`:""}
@@ -1070,13 +1097,31 @@
   }
 
   /* ===================== Views: Catálogo ===================== */
+  function searchQueryFromUrl(){
+    const qs = currentRoute().split("?")[1] || "";
+    return new URLSearchParams(qs).get("q") || "";
+  }
+  function filterProducts(list, q){
+    if(!q) return list;
+    const needle = q.toLowerCase();
+    return list.filter(p => `${p.nome} ${p.categoria} ${p.sku}`.toLowerCase().includes(needle));
+  }
+  function searchActiveNoteHtml(q, clearHref){
+    if(!q) return "";
+    return `<div class="search-active-note">Mostrando resultados para "<b>${esc(q)}</b>" <button data-nav="${clearHref}">Limpar busca</button></div>`;
+  }
+
   function viewCatalogo(){
+    const q = searchQueryFromUrl();
+    const list = filterProducts(db.products, q);
     return `
       <div class="page-head">
         <div><span class="eyebrow">Catálogo</span><h1>Equipamentos e soluções</h1><p>Escolha um item para conversar com o assistente de IA e receber uma estimativa personalizada.</p></div>
       </div>
+      ${searchActiveNoteHtml(q, "#/catalogo")}
+      ${!list.length ? emptyState(`Nenhum produto encontrado para "${q}".`, "#/catalogo", "Ver catálogo completo") : `
       <div class="grid-products">
-        ${db.products.map(p => `
+        ${list.map(p => `
           <div class="card product-card">
             <img class="thumb" src="${p.imagem || genericArt()}" alt="Foto ilustrativa de ${esc(p.nome)}">
             <div class="body">
@@ -1087,7 +1132,7 @@
             </div>
           </div>
         `).join("")}
-      </div>
+      </div>`}
     `;
   }
 
@@ -1481,15 +1526,19 @@
 
   /* ===================== Views: Admin ===================== */
   function viewAdminCatalogo(){
+    const q = searchQueryFromUrl();
+    const list = filterProducts(db.products, q);
     return `
       <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Gerenciar catálogo</h1><p>${db.products.length} produtos cadastrados.</p></div>
       <button class="btn btn-primary" data-action="novo-produto">+ Novo produto</button></div>
       <div id="produtoFormWrap"></div>
+      ${searchActiveNoteHtml(q, "#/admin/catalogo")}
+      ${!list.length ? emptyState(`Nenhum produto encontrado para "${q}".`, "#/admin/catalogo", "Ver catálogo completo") : `
       <div class="table-wrap"><table>
         <thead><tr><th>Produto</th><th>Categoria</th><th>SKU</th><th>Preço base</th><th></th></tr></thead>
-        <tbody>${db.products.map(p=>`<tr><td><div class="prod-cell"><img class="table-thumb" src="${p.imagem || genericArt()}" alt=""><span>${esc(p.nome)}</span></div></td><td>${esc(p.categoria)}</td><td class="mono">${esc(p.sku)}</td><td class="mono">${brl(p.precoBase)}</td>
+        <tbody>${list.map(p=>`<tr><td><div class="prod-cell"><img class="table-thumb" src="${p.imagem || genericArt()}" alt=""><span>${esc(p.nome)}</span></div></td><td>${esc(p.categoria)}</td><td class="mono">${esc(p.sku)}</td><td class="mono">${brl(p.precoBase)}</td>
         <td class="table-actions"><button class="btn btn-secondary btn-sm" data-action="editar-produto" data-id="${p.id}">Editar</button><button class="btn btn-danger btn-sm" data-action="remover-produto" data-id="${p.id}">Remover</button></td></tr>`).join("")}</tbody>
-      </table></div>
+      </table></div>`}
     `;
   }
 
@@ -1703,21 +1752,38 @@
     const menu = document.getElementById("userMenu");
     const notifBtn = e.target.closest("#notifBtn");
     const notifPanel = document.getElementById("notifPanel");
-    if(!menu && !notifPanel) return;
+    const searchBtn = e.target.closest("#searchBtn");
+    const searchPanel = document.getElementById("searchPanel");
+    if(!menu && !notifPanel && !searchPanel) return;
+
+    function closeAllExcept(keep){
+      if(menu && keep!=="menu"){ menu.hidden = true; const b=document.getElementById("userMenuBtn"); if(b) b.setAttribute("aria-expanded","false"); }
+      if(notifPanel && keep!=="notif"){ notifPanel.hidden = true; const b=document.getElementById("notifBtn"); if(b) b.setAttribute("aria-expanded","false"); }
+      if(searchPanel && keep!=="search"){ searchPanel.hidden = true; const b=document.getElementById("searchBtn"); if(b) b.setAttribute("aria-expanded","false"); }
+    }
+
     if(btn && menu){
       const willOpen = menu.hidden;
+      closeAllExcept(willOpen ? "menu" : null);
       menu.hidden = !willOpen; btn.setAttribute("aria-expanded", willOpen);
-      if(notifPanel){ notifPanel.hidden = true; document.getElementById("notifBtn").setAttribute("aria-expanded","false"); }
       return;
     }
     if(notifBtn && notifPanel){
       const willOpen = notifPanel.hidden;
+      closeAllExcept(willOpen ? "notif" : null);
       notifPanel.hidden = !willOpen; notifBtn.setAttribute("aria-expanded", willOpen);
-      if(menu){ menu.hidden = true; document.getElementById("userMenuBtn").setAttribute("aria-expanded","false"); }
+      return;
+    }
+    if(searchBtn && searchPanel){
+      const willOpen = searchPanel.hidden;
+      closeAllExcept(willOpen ? "search" : null);
+      searchPanel.hidden = !willOpen; searchBtn.setAttribute("aria-expanded", willOpen);
+      if(willOpen) setTimeout(()=>{ const i=document.getElementById("searchInput"); if(i) i.focus(); }, 0);
       return;
     }
     if(menu && !e.target.closest("#userMenu")) menu.hidden = true;
     if(notifPanel && !e.target.closest("#notifPanel")) notifPanel.hidden = true;
+    if(searchPanel && !e.target.closest("#searchPanel")) searchPanel.hidden = true;
   });
 
   document.addEventListener("click", function(e){
@@ -1738,6 +1804,13 @@
   });
 
   document.addEventListener("submit", function(e){
+    if(e.target.id === "searchForm"){
+      e.preventDefault();
+      const target = e.target.dataset.target;
+      const val = document.getElementById("searchInput").value.trim();
+      go(target + (val ? "?q=" + encodeURIComponent(val) : ""));
+      return;
+    }
     if(e.target.id === "loginForm"){
       e.preventDefault();
       clearErrors(e.target);
