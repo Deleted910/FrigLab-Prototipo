@@ -115,7 +115,9 @@
     padding:14px 28px; background:var(--surface); border-bottom:1px solid var(--border);
     position:sticky; top:0; z-index:20;
   }
-  .brand{display:flex; align-items:center; gap:10px; font-family:"Archivo"; font-weight:800; font-size:1.15rem; letter-spacing:-.01em; flex:none; white-space:nowrap;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:"Archivo"; font-weight:800; font-size:1.15rem; letter-spacing:-.01em; flex:none; white-space:nowrap; cursor:pointer; border-radius:var(--radius-s);}
+  .brand:hover{opacity:.85;}
+  .brand:focus-visible{outline:2.5px solid var(--focus); outline-offset:3px;}
   .brand .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(155deg,var(--accent),var(--accent-strong));display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;flex:none;}
   .brand small{display:block;font-family:"Inter";font-weight:500;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);}
   .nav-links{display:flex; gap:4px; flex:1 1 auto; min-width:0; overflow-x:auto; scrollbar-width:thin;}
@@ -604,8 +606,8 @@
   function withPublicShell(contentHtml){
     return `
       <div class="topbar">
-        <div class="brand"><span class="mark">❄</span><span>FrigLab<small>Plataforma de orçamentos</small></span></div>
-        <nav class="nav-links"><button class="active">Catálogo</button></nav>
+        <div class="brand" data-nav="#/catalogo" tabindex="0" role="link" aria-label="Ir para o catálogo"><span class="mark">❄</span><span>FrigLab<small>Plataforma de orçamentos</small></span></div>
+        <nav class="nav-links"><button class="active" data-nav="#/catalogo">Catálogo</button></nav>
         <div class="topbar-right">
           <button class="btn btn-secondary btn-sm" data-nav="#/login">Entrar</button>
           <button class="btn btn-primary btn-sm" data-nav="#/cadastro">Cadastre-se</button>
@@ -630,7 +632,7 @@
     const nav = isAdmin ? navAdmin : navClient;
     return `
       <div class="topbar">
-        <div class="brand"><span class="mark">❄</span><span>FrigLab<small>${isAdmin?"Painel administrativo":"Plataforma de orçamentos"}</small></span></div>
+        <div class="brand" data-nav="${isAdmin ? '#/admin/catalogo' : '#/catalogo'}" tabindex="0" role="link" aria-label="Ir para o catálogo"><span class="mark">❄</span><span>FrigLab<small>${isAdmin?"Painel administrativo":"Plataforma de orçamentos"}</small></span></div>
         <nav class="nav-links">
           ${nav.map(n => `<button data-nav="${n.href}" class="${activeKey===n.key?"active":""}">${n.label}</button>`).join("")}
         </nav>
@@ -1228,6 +1230,12 @@
   }
 
   /* ===================== Global event delegation ===================== */
+  document.addEventListener("keydown", function(e){
+    if(e.key !== "Enter" && e.key !== " ") return;
+    const nav = e.target.closest && e.target.closest("[data-nav][tabindex]");
+    if(nav){ e.preventDefault(); go(nav.dataset.nav); }
+  });
+
   document.addEventListener("click", function(e){
     const nav = e.target.closest("[data-nav]");
     if(nav){ go(nav.dataset.nav); return; }
