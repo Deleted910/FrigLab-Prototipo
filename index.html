@@ -545,17 +545,23 @@
 
   /* ===================== Router ===================== */
   const PUBLIC_ROUTES = ["#/login","#/cadastro"];
+  const GUEST_OK_PREFIXES = ["#/catalogo", "#/produto/"];
   const ADMIN_ROUTES = ["#/admin/catalogo","#/admin/orcamentos","#/admin/pedidos"];
 
-  function currentRoute(){ return location.hash || "#/login"; }
+  function currentRoute(){ return location.hash || "#/catalogo"; }
+  function isGuestOk(route){ return GUEST_OK_PREFIXES.some(p => route === p || route.startsWith(p)); }
 
   function guard(){
     const route = currentRoute().split("?")[0];
     const user = currentUser();
-    if(!user && !PUBLIC_ROUTES.includes(route)){ go("#/login"); return false; }
-    if(user && PUBLIC_ROUTES.includes(route)){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
-    if(user && user.role!=="admin" && ADMIN_ROUTES.includes(route)){ go("#/catalogo"); return false; }
-    if(user && user.role==="admin" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/")){ go("#/admin/catalogo"); return false; }
+    if(!user){
+      if(PUBLIC_ROUTES.includes(route) || isGuestOk(route)) return true;
+      go("#/login");
+      return false;
+    }
+    if(PUBLIC_ROUTES.includes(route)){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
+    if(user.role!=="admin" && ADMIN_ROUTES.includes(route)){ go("#/catalogo"); return false; }
+    if(user.role==="admin" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/")){ go("#/admin/catalogo"); return false; }
     return true;
   }
 
@@ -573,8 +579,8 @@
 
     if(path === "login") html = viewLogin();
     else if(path === "cadastro") html = viewCadastro();
-    else if(path === "catalogo") html = withShell(viewCatalogo(), user, "catalogo");
-    else if(path === "produto" && parts[1]) html = withShell(viewProdutoDetalhe(parts[1]), user, "catalogo");
+    else if(path === "catalogo") html = user ? withShell(viewCatalogo(), user, "catalogo") : withPublicShell(viewCatalogo());
+    else if(path === "produto" && parts[1]) html = user ? withShell(viewProdutoDetalhe(parts[1]), user, "catalogo") : withPublicShell(viewProdutoDetalhe(parts[1]));
     else if(path === "orcamento" && parts[1] === "chat") html = withShell(viewChat(), user, "orcamentos");
     else if(path === "orcamento" && parts[1]) html = withShell(viewOrcamentoResumo(parts[1]), user, "orcamentos");
     else if(path === "meus-orcamentos") html = withShell(viewMeusOrcamentos(user), user, "orcamentos");
@@ -586,7 +592,7 @@
     else if(path === "admin" && parts[1] === "catalogo") html = withShell(viewAdminCatalogo(), user, "admin-catalogo");
     else if(path === "admin" && parts[1] === "orcamentos") html = withShell(viewAdminOrcamentos(), user, "admin-orcamentos");
     else if(path === "admin" && parts[1] === "pedidos") html = withShell(viewAdminPedidos(), user, "admin-pedidos");
-    else html = viewLogin();
+    else { go(user ? (user.role==="admin" ? "#/admin/catalogo" : "#/catalogo") : "#/catalogo"); return; }
 
     app.innerHTML = html + a11yWidget();
     initA11yWidget();
@@ -595,6 +601,20 @@
   }
 
   /* ===================== Shell ===================== */
+  function withPublicShell(contentHtml){
+    return `
+      <div class="topbar">
+        <div class="brand"><span class="mark">❄</span><span>FrigLab<small>Plataforma de orçamentos</small></span></div>
+        <nav class="nav-links"><button class="active">Catálogo</button></nav>
+        <div class="topbar-right">
+          <button class="btn btn-secondary btn-sm" data-nav="#/login">Entrar</button>
+          <button class="btn btn-primary btn-sm" data-nav="#/cadastro">Cadastre-se</button>
+        </div>
+      </div>
+      <main><div class="page">${contentHtml}</div></main>
+    `;
+  }
+
   function withShell(contentHtml, user, activeKey){
     const isAdmin = user && user.role === "admin";
     const navClient = [
@@ -781,6 +801,17 @@
 
   /* ===================== Views: Chat / IA ===================== */
   let chatState = null;
+  let pendingQuoteProductId = null;
+  function goAfterLogin(user){
+    if(pendingQuoteProductId){
+      const pid = pendingQuoteProductId;
+      pendingQuoteProductId = null;
+      chatState = null;
+      go("#/orcamento/chat?produto="+pid);
+      return;
+    }
+    go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo");
+  }
   function resetChat(productId){
     const product = db.products.find(p=>p.id===productId) || db.products[0];
     chatState = { product, step:"quantidade", quantidade:null, aplicacao:null, log:[
@@ -1210,7 +1241,7 @@
     if(!action) return;
     const act = action.dataset.action;
 
-    if(act === "logout"){ setSession(null); chatState=null; go("#/login"); showToast("Sessão encerrada."); return; }
+    if(act === "logout"){ setSession(null); chatState=null; pendingQuoteProductId=null; go("#/catalogo"); showToast("Sessão encerrada."); return; }
 
     if(act === "switch-role"){
       const me = currentUser();
@@ -1223,7 +1254,15 @@
       return;
     }
 
-    if(act === "pedir-orcamento"){ chatState=null; go("#/orcamento/chat?produto="+action.dataset.id); return; }
+    if(act === "pedir-orcamento"){
+      if(!currentUser()){
+        pendingQuoteProductId = action.dataset.id;
+        showToast("Crie uma conta ou entre para solicitar seu orçamento.");
+        go("#/login");
+        return;
+      }
+      chatState=null; go("#/orcamento/chat?produto="+action.dataset.id); return;
+    }
     if(act === "ver-orcamento"){ go("#/orcamento/"+action.dataset.id); return; }
 
     if(act === "aprovar-orcamento"){
@@ -1307,7 +1346,7 @@
       const user = db.users.find(u=>u.email.toLowerCase()===email.toLowerCase());
       if(!user || user.senha !== senha){ fieldError("f_senha","E-mail ou senha inválidos."); return; }
       setSession({userId:user.id});
-      go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo");
+      goAfterLogin(user);
       showToast("Bem-vindo(a), "+user.nome.split(" ")[0]+"!");
     }
 
@@ -1328,7 +1367,7 @@
       const user = {id:uid("u"), nome, email, senha, role:"cliente"};
       db.users.push(user); saveDb(db);
       setSession({userId:user.id});
-      go("#/catalogo");
+      goAfterLogin(user);
       showToast("Conta criada com sucesso!");
     }
 
