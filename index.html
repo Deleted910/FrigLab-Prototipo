@@ -367,9 +367,17 @@
   }
   function seedOrders(){
     return [
-      { id:"o_demo1", numero:"FRIG-2026-00001", quoteId:"q_demo4", clientId:"u_demo_cliente", valor:19240, status:"em_producao", createdAt:"2026-08-21T09:00:00" },
-      { id:"o_demo2", numero:"FRIG-2026-00002", quoteId:"q_demo5", clientId:"u_demo_cliente", valor:13312, status:"em_transporte", createdAt:"2026-08-16T10:00:00" },
-      { id:"o_demo3", numero:"FRIG-2026-00003", quoteId:"q_demo6", clientId:"u_demo_cliente", valor:4368, status:"entregue", createdAt:"2026-08-11T15:00:00" }
+      { id:"o_demo1", numero:"FRIG-2026-00001", quoteId:"q_demo4", clientId:"u_demo_cliente", valor:19240, status:"em_producao", createdAt:"2026-08-21T09:00:00", chat:[
+        {from:"cliente", texto:"Olá! Qual a previsão de entrega deste pedido?", ts:"2026-08-22T09:10:00"},
+        {from:"admin", texto:"Bom dia! A previsão é de aproximadamente 10 dias úteis a partir do início da produção.", ts:"2026-08-22T10:05:00"}
+      ] },
+      { id:"o_demo2", numero:"FRIG-2026-00002", quoteId:"q_demo5", clientId:"u_demo_cliente", valor:13312, status:"em_transporte", createdAt:"2026-08-16T10:00:00", chat:[
+        {from:"cliente", texto:"O painel já saiu para transporte? Preciso organizar o recebimento na obra.", ts:"2026-08-19T08:30:00"},
+        {from:"admin", texto:"Sim! Saiu hoje pela manhã, chegada estimada em 3 dias úteis.", ts:"2026-08-19T09:00:00"}
+      ] },
+      { id:"o_demo3", numero:"FRIG-2026-00003", quoteId:"q_demo6", clientId:"u_demo_cliente", valor:4368, status:"entregue", createdAt:"2026-08-11T15:00:00", chat:[
+        {from:"admin", texto:"Pedido entregue conforme combinado. Qualquer dúvida sobre a instalação, é só chamar por aqui!", ts:"2026-08-14T16:20:00"}
+      ] }
     ];
   }
 
@@ -397,6 +405,9 @@
     }
     dbObj.products.forEach(p => {
       if(!p.imagem){ p.imagem = PRODUCT_ART[p.id] || genericArt(); changed = true; }
+    });
+    dbObj.orders.forEach(o => {
+      if(!o.chat){ o.chat = []; changed = true; }
     });
     if(changed) saveDb(dbObj);
   }
@@ -590,7 +601,7 @@
     else if(path === "pagamento" && parts[1]) html = withShell(viewPagamento(parts[1]), user, "orcamentos");
     else if(path === "confirmacao" && parts[1]) html = withShell(viewConfirmacao(parts[1]), user, "pedidos");
     else if(path === "meus-pedidos") html = withShell(viewMeusPedidos(user), user, "pedidos");
-    else if(path === "pedido" && parts[1]) html = withShell(viewPedidoDetalhe(parts[1]), user, "pedidos");
+    else if(path === "pedido" && parts[1]) html = withShell(viewPedidoDetalhe(parts[1]), user, (user && user.role==="admin") ? "admin-pedidos" : "pedidos");
     else if(path === "admin" && parts[1] === "catalogo") html = withShell(viewAdminCatalogo(), user, "admin-catalogo");
     else if(path === "admin" && parts[1] === "orcamentos") html = withShell(viewAdminOrcamentos(), user, "admin-orcamentos");
     else if(path === "admin" && parts[1] === "pedidos") html = withShell(viewAdminPedidos(), user, "admin-pedidos");
@@ -1094,10 +1105,16 @@
   function viewPedidoDetalhe(id){
     const o = db.orders.find(x=>x.id===id);
     if(!o) return emptyState("Pedido não encontrado.", "#/meus-pedidos", "Ver meus pedidos");
+    const me = currentUser();
+    const isAdmin = me && me.role === "admin";
+    if(!isAdmin && (!me || o.clientId !== me.id)){
+      return emptyState("Você não tem acesso a este pedido.", "#/meus-pedidos", "Ver meus pedidos");
+    }
     const q = getQuote(o.quoteId); const p = q ? getProduct(q.productId) : null;
     const idx = orderStatusIndex(o.status);
+    const cliente = db.users.find(u=>u.id===o.clientId);
     return `
-      <div class="page-head"><div><span class="eyebrow">Pedido ${esc(o.numero)}</span><h1>Acompanhamento</h1></div></div>
+      <div class="page-head"><div><span class="eyebrow">Pedido ${esc(o.numero)}</span><h1>Acompanhamento</h1>${isAdmin?`<p>Cliente: ${esc(cliente?cliente.nome:"—")} · ${esc(cliente?cliente.email:"")}</p>`:""}</div></div>
       <div class="card pad">
         <div class="stepper">
           ${ORDER_STEPS.map((s,i)=>`<div class="step ${i<idx?'done':i===idx?'current':''}"><div class="dot">${i<idx?'✓':i+1}</div><div class="label">${s.label}</div></div>`).join("")}
@@ -1105,7 +1122,30 @@
         ${p?`<div class="summary-row"><span>${esc(p.nome)}</span><span>${brl(o.valor)}</span></div>`:""}
         <div class="summary-row"><span>Pedido realizado em</span><span>${fmtDate(o.createdAt)}</span></div>
       </div>
+      <div class="card" style="margin-top:20px;overflow:hidden;">
+        <div style="padding:18px 20px 6px;">
+          <h3>Conversa sobre o pedido</h3>
+          <p style="color:var(--text-2);font-size:.83rem;margin-top:2px;">${isAdmin ? "Fale diretamente com o cliente sobre este pedido." : "Tire dúvidas com a nossa equipe sobre este pedido específico."}</p>
+        </div>
+        <div class="chat-log" id="orderChatLog" style="height:260px;">
+          ${renderOrderChatMessages(o, isAdmin)}
+        </div>
+        <form class="chat-input" id="orderChatForm" data-order-id="${o.id}">
+          <input id="orderChatInput" placeholder="${isAdmin ? "Responder ao cliente..." : "Escreva sua mensagem..."}" required>
+          <button class="btn btn-primary" type="submit">Enviar</button>
+        </form>
+      </div>
     `;
+  }
+
+  function renderOrderChatMessages(o, isAdmin){
+    const chat = o.chat || [];
+    if(!chat.length) return `<p style="color:var(--text-2);font-size:.85rem;padding:14px 4px;">Nenhuma mensagem ainda.</p>`;
+    return chat.map(m=>{
+      const mine = isAdmin ? m.from === "admin" : m.from === "cliente";
+      const label = m.from === "admin" ? "Equipe FrigLab" : "Cliente";
+      return `<div class="msg ${mine?'msg-user':'msg-bot'}">${!mine?`<b style="display:block;font-size:.7rem;opacity:.75;margin-bottom:3px;">${label}</b>`:""}${esc(m.texto)}</div>`;
+    }).join("");
   }
 
   function emptyState(msg, href, label){
@@ -1190,7 +1230,7 @@
           const idx = orderStatusIndex(o.status);
           const next = ORDER_STEPS[idx+1];
           return `<tr><td class="mono">${esc(o.numero)}</td><td>${esc(cl?cl.nome:"—")}</td><td class="mono">${brl(o.valor)}</td><td><span class="badge badge-accent">${ORDER_STEPS[idx].label}</span></td><td>${fmtDate(o.createdAt)}</td>
-          <td>${next?`<button class="btn btn-secondary btn-sm" data-action="avancar-pedido" data-id="${o.id}">Avançar para "${next.label}"</button>`:'<span style="color:var(--text-2);font-size:.8rem;">Concluído</span>'}</td></tr>`;
+          <td class="table-actions">${next?`<button class="btn btn-secondary btn-sm" data-action="avancar-pedido" data-id="${o.id}">Avançar para "${next.label}"</button>`:'<span style="color:var(--text-2);font-size:.8rem;">Concluído</span>'}<button class="btn btn-ghost btn-sm" data-nav="#/pedido/${o.id}">💬 Chat</button></td></tr>`;
         }).join("")}</tbody>
       </table></div>
     `;
@@ -1402,6 +1442,27 @@
       render();
     }
 
+    if(e.target.id === "orderChatForm"){
+      e.preventDefault();
+      const orderId = e.target.dataset.orderId;
+      const o = db.orders.find(x=>x.id===orderId);
+      const me = currentUser();
+      if(!o || !me) return;
+      const isAdmin = me.role === "admin";
+      if(!isAdmin && o.clientId !== me.id) return;
+      const input = document.getElementById("orderChatInput");
+      const texto = input.value.trim();
+      if(!texto) return;
+      o.chat = o.chat || [];
+      o.chat.push({from: isAdmin ? "admin" : "cliente", texto, ts: new Date().toISOString()});
+      saveDb(db);
+      const log = document.getElementById("orderChatLog");
+      log.innerHTML = renderOrderChatMessages(o, isAdmin);
+      log.scrollTop = log.scrollHeight;
+      input.value = "";
+      input.focus();
+    }
+
     if(e.target.id === "pagamentoForm"){
       e.preventDefault();
       clearErrors(e.target);
@@ -1423,7 +1484,7 @@
       setTimeout(()=>{
         q.status = "convertido";
         const order = {id:uid("o"), numero:"FRIG-"+new Date().getFullYear()+"-"+String(db.seq.order).padStart(5,"0"),
-          quoteId: q.id, clientId: q.clientId, valor: q.valor, status:"recebido", createdAt:new Date().toISOString()};
+          quoteId: q.id, clientId: q.clientId, valor: q.valor, status:"recebido", createdAt:new Date().toISOString(), chat:[]};
         db.seq.order++; db.orders.push(order); saveDb(db);
         go("#/confirmacao/"+order.id);
       }, 900);
@@ -1440,6 +1501,10 @@
       }
     }
     if(path === "orcamento" && parts[1] === "chat"){ bindChatInputs(); }
+    if(path === "pedido"){
+      const log = document.getElementById("orderChatLog");
+      if(log) log.scrollTop = log.scrollHeight;
+    }
   }
 
 })();
