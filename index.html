@@ -652,8 +652,9 @@
   function getSession(){
     try{ return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }catch(e){ return null; }
   }
+  let sessionTermsAck = false;
   function setSession(s){
-    if(s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    if(s){ localStorage.setItem(SESSION_KEY, JSON.stringify(s)); sessionTermsAck = false; }
     else localStorage.removeItem(SESSION_KEY);
   }
   function currentUser(){
@@ -794,8 +795,8 @@
       go("#/login");
       return false;
     }
-    if(!user.termosAceitos && route !== "#/aceitar-termos"){ go("#/aceitar-termos"); return false; }
-    if(user.termosAceitos && route === "#/aceitar-termos"){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
+    if(!sessionTermsAck && route !== "#/aceitar-termos"){ go("#/aceitar-termos"); return false; }
+    if(sessionTermsAck && route === "#/aceitar-termos"){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
     if(PUBLIC_ROUTES.includes(route)){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
     if(user.role!=="admin" && ADMIN_ROUTES.includes(route)){ go("#/catalogo"); return false; }
     const isOrcamentoDetail = route.startsWith("#/orcamento/") && !route.startsWith("#/orcamento/chat");
@@ -2011,6 +2012,7 @@
       const user = {id:uid("u"), nome, email, senha, role:"cliente", termosAceitos:true, termosAceitosEm:new Date().toISOString()};
       db.users.push(user); saveDb(db);
       setSession({userId:user.id});
+      sessionTermsAck = true;
       goAfterLogin(user);
       showToast("Conta criada com sucesso!");
     }
@@ -2023,6 +2025,7 @@
       const user = currentUser();
       user.termosAceitos = true; user.termosAceitosEm = new Date().toISOString();
       saveDb(db);
+      sessionTermsAck = true;
       goAfterLogin(user);
     }
 
