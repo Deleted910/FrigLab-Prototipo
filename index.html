@@ -1206,7 +1206,7 @@
   function dateRangeFromUrl(){
     const qs = currentRoute().split("?")[1] || "";
     const p = new URLSearchParams(qs);
-    return { de: p.get("de") || "", ate: p.get("ate") || "" };
+    return { de: p.get("de") || "", ate: p.get("ate") || "", ord: p.get("ord") === "asc" ? "asc" : "desc" };
   }
   function filterByDateRange(list, de, ate, dateField){
     if(!de && !ate) return list;
@@ -1217,13 +1217,23 @@
       return true;
     });
   }
-  function dateFilterHtml(de, ate, baseHref){
-    const hasFilter = de || ate;
+  function sortByDateOrder(list, ord, dateField){
+    return [...list].sort((a,b)=> ord === "asc" ? a[dateField].localeCompare(b[dateField]) : b[dateField].localeCompare(a[dateField]));
+  }
+  function dateFilterHtml(de, ate, baseHref, ord){
+    ord = ord === "asc" ? "asc" : "desc";
+    const hasFilter = de || ate || ord === "asc";
     return `
       <form class="date-filter" id="dateFilterForm" data-base="${baseHref}">
         <label>De<input type="date" id="dfDe" value="${esc(de)}"></label>
         <label>Até<input type="date" id="dfAte" value="${esc(ate)}"></label>
-        <button type="submit" class="btn btn-secondary btn-sm">Filtrar por data</button>
+        <label>Ordenar por
+          <select id="dfOrd">
+            <option value="desc" ${ord==="desc"?"selected":""}>Mais recente</option>
+            <option value="asc" ${ord==="asc"?"selected":""}>Mais antigo</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn-secondary btn-sm">Filtrar</button>
         ${hasFilter ? `<button type="button" class="btn btn-ghost btn-sm" data-nav="${baseHref}">Limpar filtro</button>` : ""}
       </form>
     `;
@@ -1481,13 +1491,13 @@
   }
 
   function viewMeusOrcamentos(user){
-    const all = db.quotes.filter(q=>q.clientId===user.id).sort((a,b)=> b.createdAt.localeCompare(a.createdAt));
+    const all = db.quotes.filter(q=>q.clientId===user.id);
     if(!all.length) return `<div class="page-head"><div><span class="eyebrow">Orçamentos</span><h1>Meus orçamentos</h1></div></div>` + emptyState("Você ainda não solicitou nenhum orçamento.", "#/catalogo", "Ver catálogo");
-    const {de, ate} = dateRangeFromUrl();
-    const mine = filterByDateRange(all, de, ate, "createdAt");
+    const {de, ate, ord} = dateRangeFromUrl();
+    const mine = sortByDateOrder(filterByDateRange(all, de, ate, "createdAt"), ord, "createdAt");
     return `
       <div class="page-head"><div><span class="eyebrow">Orçamentos</span><h1>Meus orçamentos</h1><p>${mine.length} solicitação${mine.length!==1?"ões":""} ${(de||ate)?"no período selecionado":"no total"}.</p></div></div>
-      ${dateFilterHtml(de, ate, "#/meus-orcamentos")}
+      ${dateFilterHtml(de, ate, "#/meus-orcamentos", ord)}
       ${!mine.length ? emptyState("Nenhum orçamento encontrado para o período selecionado.", "#/meus-orcamentos", "Limpar filtro") : `
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Produto</th><th>Valor estimado</th><th>Status</th><th>Data</th><th></th></tr></thead>
@@ -1549,13 +1559,13 @@
   }
 
   function viewMeusPedidos(user){
-    const all = db.orders.filter(o=>o.clientId===user.id).sort((a,b)=> b.createdAt.localeCompare(a.createdAt));
+    const all = db.orders.filter(o=>o.clientId===user.id);
     if(!all.length) return `<div class="page-head"><div><span class="eyebrow">Pedidos</span><h1>Meus pedidos</h1></div></div>` + emptyState("Você ainda não tem pedidos confirmados.", "#/catalogo", "Ver catálogo");
-    const {de, ate} = dateRangeFromUrl();
-    const mine = filterByDateRange(all, de, ate, "createdAt");
+    const {de, ate, ord} = dateRangeFromUrl();
+    const mine = sortByDateOrder(filterByDateRange(all, de, ate, "createdAt"), ord, "createdAt");
     return `
       <div class="page-head"><div><span class="eyebrow">Pedidos</span><h1>Meus pedidos</h1></div></div>
-      ${dateFilterHtml(de, ate, "#/meus-pedidos")}
+      ${dateFilterHtml(de, ate, "#/meus-pedidos", ord)}
       ${!mine.length ? emptyState("Nenhum pedido encontrado para o período selecionado.", "#/meus-pedidos", "Limpar filtro") : `
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Valor</th><th>Status</th><th>Data</th><th>Previsão de entrega</th><th></th></tr></thead>
@@ -1686,18 +1696,18 @@
   }
 
   function viewAdminOrcamentos(){
-    const everything = [...db.quotes].sort((a,b)=>{
+    if(!db.quotes.length) return `<div class="page-head"><div><span class="eyebrow">Administração</span><h1>Orçamentos recebidos</h1></div></div>` + emptyState("Nenhum orçamento solicitado ainda.", "#/admin/catalogo", "Ver catálogo");
+    const {de, ate, ord} = dateRangeFromUrl();
+    const filtered = filterByDateRange(db.quotes, de, ate, "createdAt");
+    const all = [...filtered].sort((a,b)=>{
       const ua = hasUnreadThread(a,"admin"), ub = hasUnreadThread(b,"admin");
       if(ua !== ub) return ua ? -1 : 1;
-      return b.createdAt.localeCompare(a.createdAt);
+      return ord === "asc" ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt);
     });
-    if(!everything.length) return `<div class="page-head"><div><span class="eyebrow">Administração</span><h1>Orçamentos recebidos</h1></div></div>` + emptyState("Nenhum orçamento solicitado ainda.", "#/admin/catalogo", "Ver catálogo");
-    const {de, ate} = dateRangeFromUrl();
-    const all = filterByDateRange(everything, de, ate, "createdAt");
     const unreadTotal = all.filter(q=>hasUnreadThread(q,"admin")).length;
     return `
       <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Orçamentos recebidos</h1><p>${all.length} solicitaç${all.length!==1?"ões":"ão"} ${(de||ate)?"no período selecionado":"no total"}.${unreadTotal?` <b style="color:var(--danger);">${unreadTotal} com mensagem nova</b> — listados primeiro.`:""}</p></div></div>
-      ${dateFilterHtml(de, ate, "#/admin/orcamentos")}
+      ${dateFilterHtml(de, ate, "#/admin/orcamentos", ord)}
       ${!all.length ? emptyState("Nenhum orçamento encontrado para o período selecionado.", "#/admin/orcamentos", "Limpar filtro") : `
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Cliente</th><th>Produto</th><th>Valor</th><th>Status</th><th>Data</th><th></th></tr></thead>
@@ -1713,18 +1723,18 @@
   }
 
   function viewAdminPedidos(){
-    const everything = [...db.orders].sort((a,b)=>{
+    if(!db.orders.length) return `<div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1></div></div>` + emptyState("Nenhum pedido confirmado ainda.", "#/admin/catalogo", "Ver catálogo");
+    const {de, ate, ord} = dateRangeFromUrl();
+    const filtered = filterByDateRange(db.orders, de, ate, "createdAt");
+    const all = [...filtered].sort((a,b)=>{
       const ua = hasUnreadThread(a,"admin"), ub = hasUnreadThread(b,"admin");
       if(ua !== ub) return ua ? -1 : 1;
-      return b.createdAt.localeCompare(a.createdAt);
+      return ord === "asc" ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt);
     });
-    if(!everything.length) return `<div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1></div></div>` + emptyState("Nenhum pedido confirmado ainda.", "#/admin/catalogo", "Ver catálogo");
-    const {de, ate} = dateRangeFromUrl();
-    const all = filterByDateRange(everything, de, ate, "createdAt");
     const unreadTotal = all.filter(o=>hasUnreadThread(o,"admin")).length;
     return `
       <div class="page-head"><div><span class="eyebrow">Administração</span><h1>Pedidos</h1><p>${all.length} pedido${all.length!==1?"s":""} ${(de||ate)?"no período selecionado":"no total"}.${unreadTotal?` <b style="color:var(--danger);">${unreadTotal} com mensagem nova</b> — listados primeiro.`:""}</p></div></div>
-      ${dateFilterHtml(de, ate, "#/admin/pedidos")}
+      ${dateFilterHtml(de, ate, "#/admin/pedidos", ord)}
       ${!all.length ? emptyState("Nenhum pedido encontrado para o período selecionado.", "#/admin/pedidos", "Limpar filtro") : `
       <div class="table-wrap"><table>
         <thead><tr><th>Número</th><th>Cliente</th><th>Valor</th><th>Status</th><th>Data</th><th>Previsão de entrega</th><th></th></tr></thead>
@@ -1958,9 +1968,11 @@
       const base = e.target.dataset.base;
       const de = document.getElementById("dfDe").value;
       const ate = document.getElementById("dfAte").value;
+      const ord = document.getElementById("dfOrd").value;
       const params = [];
       if(de) params.push("de=" + de);
       if(ate) params.push("ate=" + ate);
+      if(ord === "asc") params.push("ord=asc");
       go(base + (params.length ? "?" + params.join("&") : ""));
       return;
     }
