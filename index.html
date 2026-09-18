@@ -295,7 +295,7 @@
   .row-unread-badge{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;color:var(--accent-strong);background:var(--accent-tint);padding:2px 8px;border-radius:999px;margin-left:8px;}
 
   table{width:100%; border-collapse:collapse; font-size:.86rem;}
-  th{text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-2); padding:0 14px 10px; font-weight:700;}
+  th{text-align:left; font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-2); padding:16px 14px; font-weight:700; vertical-align:middle;}
   td{padding:13px 14px; border-top:1px solid var(--border);}
   tr:hover td{background:var(--surface-2);}
   .table-wrap{overflow-x:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-l); box-shadow:var(--shadow);}
@@ -322,13 +322,16 @@
   .chat-input input:focus, .chat-input select:focus{border-color:var(--accent);}
   .chat-input input::placeholder{color:var(--text-2);}
   .chat-attach-btn{flex:none; width:42px; height:42px; border-radius:var(--radius-s); border:1.5px solid var(--border);
-    background:var(--surface); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:1.15rem; color:var(--text-2);}
+    background:var(--surface); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:1.6rem; font-weight:500; line-height:1; color:var(--text-2);}
   .chat-attach-btn:hover{border-color:var(--accent); color:var(--accent-strong);}
   .chat-attach-preview{display:flex; align-items:center; gap:10px; padding:0 16px 12px;}
   .chat-attach-preview img{width:52px; height:52px; object-fit:cover; border-radius:var(--radius-s); border:1px solid var(--border);}
   .chat-attach-preview span{font-size:.82rem; color:var(--text-2);}
   .chat-attach-preview button{background:none; border:none; color:var(--text-2); cursor:pointer; font-size:1rem; padding:4px;}
   .chat-attach-preview button:hover{color:var(--accent-strong);}
+  .file-chip small{opacity:.7;}
+  .msg .file-link{display:block; margin-top:6px; padding:8px 10px; border-radius:8px; background:rgba(128,128,128,.18); color:inherit; font-weight:600; font-size:.84rem; text-decoration:none; word-break:break-all;}
+  .msg .file-link:hover{text-decoration:underline;}
   .msg img{max-width:220px; max-height:220px; border-radius:10px; display:block; margin-top:6px; object-fit:cover; cursor:zoom-in;}
   .msg img:first-child{margin-top:0;}
   .chips{display:flex; flex-wrap:wrap; gap:8px; padding:0 22px 16px;}
@@ -561,6 +564,13 @@
   function saveDb(db){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); return true; }catch(e){ return false; } }
 
   /* Redimensiona/comprime uma imagem enviada pelo admin antes de guardar (mantém o localStorage leve) */
+  const CHAT_FILE_MAX = 1.5 * 1024 * 1024;
+  function fmtBytes(n){ return n < 1024*1024 ? Math.max(1, Math.round(n/1024)) + " KB" : (n/1024/1024).toFixed(1).replace(".", ",") + " MB"; }
+  function clearChatAttachment(){
+    ["threadChatImage","threadChatFileName","threadChatFileType","threadChatFile"].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ""; });
+    const prev = document.getElementById("threadChatPreview");
+    if(prev){ prev.hidden = true; prev.innerHTML = ""; }
+  }
   function resizeImageFile(file, maxW, cb){
     const reader = new FileReader();
     reader.onload = function(ev){
@@ -1618,8 +1628,10 @@
         </div>
         <div class="chat-attach-preview" id="threadChatPreview" hidden></div>
         <form class="chat-input" id="threadChatForm" data-type="${tipo}" data-id="${entity.id}">
-          <label class="chat-attach-btn" title="Anexar foto" aria-label="Anexar foto">📷<input type="file" accept="image/*" id="threadChatFile" hidden></label>
+          <label class="chat-attach-btn" title="Anexar arquivo (foto, PDF, documento...)" aria-label="Anexar arquivo">+<input type="file" id="threadChatFile" hidden></label>
           <input type="hidden" id="threadChatImage">
+          <input type="hidden" id="threadChatFileName">
+          <input type="hidden" id="threadChatFileType">
           <input id="threadChatInput" placeholder="${isAdmin ? "Responder ao cliente..." : "Escreva sua mensagem..."}">
           <button class="btn btn-primary" type="submit">Enviar</button>
         </form>
@@ -1634,8 +1646,9 @@
       const mine = isAdmin ? m.from === "admin" : m.from === "cliente";
       const label = m.from === "admin" ? "Equipe FrigLab" : "Cliente";
       const img = m.imagem ? `<img src="${m.imagem}" alt="Foto enviada na conversa" data-action="ver-foto-chat">` : "";
+      const arq = m.arquivo ? `<a class="file-link" href="${m.arquivo.data}" download="${esc(m.arquivo.nome)}">📎 ${esc(m.arquivo.nome)}</a>` : "";
       const texto = m.texto ? esc(m.texto) : "";
-      return `<div class="msg ${mine?'msg-user':'msg-bot'}">${!mine?`<b style="display:block;font-size:.7rem;opacity:.75;margin-bottom:3px;">${label}</b>`:""}${texto}${img}</div>`;
+      return `<div class="msg ${mine?'msg-user':'msg-bot'}">${!mine?`<b style="display:block;font-size:.7rem;opacity:.75;margin-bottom:3px;">${label}</b>`:""}${texto}${img}${arq}</div>`;
     }).join("");
   }
 
@@ -1925,11 +1938,7 @@
     if(e.target.closest("[data-action='chat-qtd']")){ handleChatSubmit(e.target.dataset.v); }
     if(e.target.closest("[data-action='chat-app']")){ handleChatSubmit(e.target.dataset.v); }
     if(e.target.id === "threadChatRemoveImg"){
-      document.getElementById("threadChatImage").value = "";
-      const fileInput = document.getElementById("threadChatFile");
-      if(fileInput) fileInput.value = "";
-      const prev = document.getElementById("threadChatPreview");
-      prev.hidden = true; prev.innerHTML = "";
+      clearChatAttachment();
     }
   });
 
@@ -1946,13 +1955,27 @@
     if(e.target.id === "threadChatFile"){
       const file = e.target.files && e.target.files[0];
       if(!file) return;
-      if(!file.type.startsWith("image/")){ showToast("Selecione um arquivo de imagem."); return; }
-      resizeImageFile(file, 700, function(dataUrl){
+      const prev = document.getElementById("threadChatPreview");
+      const setAttachment = function(dataUrl, name, type, previewHtml){
         document.getElementById("threadChatImage").value = dataUrl;
-        const prev = document.getElementById("threadChatPreview");
+        document.getElementById("threadChatFileName").value = name;
+        document.getElementById("threadChatFileType").value = type;
         prev.hidden = false;
-        prev.innerHTML = `<img src="${dataUrl}" alt=""><span>Foto anexada</span><button type="button" id="threadChatRemoveImg" aria-label="Remover foto">✕</button>`;
-      });
+        prev.innerHTML = previewHtml + `<button type="button" id="threadChatRemoveImg" aria-label="Remover anexo">✕</button>`;
+      };
+      if(file.type.startsWith("image/")){
+        resizeImageFile(file, 700, function(dataUrl){
+          setAttachment(dataUrl, file.name, "image", `<img src="${dataUrl}" alt=""><span>${esc(file.name)}</span>`);
+        });
+      } else {
+        if(file.size > CHAT_FILE_MAX){ showToast("Arquivo grande demais (máx. 1,5 MB)."); e.target.value = ""; return; }
+        const reader = new FileReader();
+        reader.onload = function(ev){
+          setAttachment(ev.target.result, file.name, file.type || "application/octet-stream", `<span class="file-chip">📎 ${esc(file.name)} <small>(${fmtBytes(file.size)})</small></span>`);
+        };
+        reader.onerror = function(){ showToast("Não foi possível ler esse arquivo."); };
+        reader.readAsDataURL(file);
+      }
     }
   });
 
@@ -2069,27 +2092,26 @@
       const input = document.getElementById("threadChatInput");
       const imgInput = document.getElementById("threadChatImage");
       const texto = input.value.trim();
-      const imagem = imgInput ? imgInput.value : "";
-      if(!texto && !imagem) return;
+      const anexo = imgInput ? imgInput.value : "";
+      const anexoNome = document.getElementById("threadChatFileName").value;
+      const anexoTipo = document.getElementById("threadChatFileType").value;
+      if(!texto && !anexo) return;
       entity.chat = entity.chat || [];
       const msg = {from: isAdmin ? "admin" : "cliente", texto, ts: new Date().toISOString()};
-      if(imagem) msg.imagem = imagem;
+      if(anexo && anexoTipo === "image") msg.imagem = anexo;
+      else if(anexo) msg.arquivo = {nome: anexoNome, tipo: anexoTipo, data: anexo};
       entity.chat.push(msg);
       const ok = saveDb(db);
       if(!ok){
         entity.chat.pop();
-        showToast("A foto é grande demais para salvar. Tente uma imagem menor.");
+        showToast("O anexo é grande demais para salvar. Tente um arquivo menor.");
         return;
       }
       const log = document.getElementById("threadChatLog");
       log.innerHTML = renderThreadChatMessages(entity, isAdmin);
       log.scrollTop = log.scrollHeight;
       input.value = "";
-      if(imgInput) imgInput.value = "";
-      const fileInput = document.getElementById("threadChatFile");
-      if(fileInput) fileInput.value = "";
-      const prev = document.getElementById("threadChatPreview");
-      if(prev){ prev.hidden = true; prev.innerHTML = ""; }
+      clearChatAttachment();
       input.focus();
     }
 
