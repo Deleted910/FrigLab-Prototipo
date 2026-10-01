@@ -237,6 +237,17 @@
   .field .hint{font-size:.76rem; color:var(--text-2);}
   .field .error{font-size:.78rem; color:var(--danger); font-weight:600;}
   .field.has-error input{border-color:var(--danger);}
+
+  /* ---------- Ficha técnica ---------- */
+  .ficha-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px 16px;}
+  .ficha-grid .field{margin-bottom:0;}
+  .ficha-section-title{font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-2); margin:18px 0 10px; padding-top:14px; border-top:1px solid var(--border);}
+  .ficha-section-title:first-child{margin-top:0; padding-top:0; border-top:none;}
+  .ficha-view dl{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px 20px; margin:0;}
+  .ficha-view dt{font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-2); margin-bottom:2px;}
+  .ficha-view dd{margin:0; font-size:.92rem; font-weight:600;}
+  .ficha-view .ficha-info{margin-top:16px; padding-top:14px; border-top:1px solid var(--border);}
+  .ficha-view .ficha-info dd{font-weight:400; white-space:pre-wrap; line-height:1.5;}
   .checkbox-row{display:flex; align-items:flex-start; gap:10px;}
   .checkbox-row input{width:19px;height:19px;margin-top:2px;accent-color:var(--accent);flex:none;}
   .terms-details{border:1px solid var(--border); border-radius:var(--radius-m); padding:10px 14px; margin-bottom:14px; background:var(--bg-2,transparent);}
@@ -484,7 +495,10 @@
 
   function seedQuotes(){
     return [
-      { id:"q_demo1", numero:"ORC-0001", clientId:"u_demo_cliente", productId:"d_correr", quantidade:2, aplicacao:"Câmara fria de açougue, acesso de carga e descarga", valor:9568, status:"pendente", createdAt:"2026-09-02T10:15:00", chat:[
+      { id:"q_demo1", numero:"ORC-0001", clientId:"u_demo_cliente", productId:"d_correr", quantidade:2, aplicacao:"Câmara fria de açougue, acesso de carga e descarga", valor:9568, status:"pendente", createdAt:"2026-09-02T10:15:00",
+        fichaTecnica:{x:"1520", y:"2100", b:"150", localObra:"Capanema-PR", abertura:"esquerda", revInterno:"aco_ral9003", revExterno:"aco_ral9003", nucleo:"eps", soleira:"com", batente:"aberto", aquecimento:"duplo", protecaoExterna:true, protecaoInterna:true, visor:"sem",
+          informacoes:"Porta toda revestida em alumínio xadrez. Alavanca externa e interna fermood. 02 blocos de fechamento (em cima / em baixo). 04 dobradiças. Aquecimento separado folha / batente / soleira."},
+        chat:[
         {from:"cliente", texto:"A porta de correr aceita automatismo de abertura? Vi que é opcional.", ts:"2026-09-02T11:00:00"},
         {from:"admin", texto:"Aceita sim! O automatismo entra como item opcional no orçamento — se quiser, eu já incluo o valor na proposta.", ts:"2026-09-02T13:20:00"}
       ] },
@@ -1460,6 +1474,103 @@
   function getQuote(id){ return db.quotes.find(q=>q.id===id); }
   function getProduct(id){ return db.products.find(p=>p.id===id); }
 
+  /* ---- Ficha técnica (preenchida pelo cliente, visível ao administrador junto do orçamento) ---- */
+  const FICHA_OPCOES = {
+    abertura: {esquerda:"Esquerda", direita:"Direita"},
+    revestimento: {aco_ral9003:"Aço RAL 9003", aco_inox:"Aço Inox"},
+    nucleo: {eps:"EPS", pir:"PIR"},
+    soleira: {com:"Com soleira", sem:"Sem soleira"},
+    batente: {aberto:"Aberto", fechado:"Fechado"},
+    aquecimento: {sem:"Sem aquecimento", simples:"Com aquecimento simples", duplo:"Com aquecimento duplo"},
+    visor: {sem:"Sem visor", com:"Com visor"},
+  };
+  function fichaTecnicaDefaults(p){
+    const isPorta = p && p.categoria === "Portas";
+    return {
+      x:"", y:"", b: isPorta ? "150" : "",
+      localObra:"",
+      abertura:"esquerda", revInterno:"aco_ral9003", revExterno:"aco_ral9003",
+      nucleo: isPorta ? "eps" : (p && p.nome.toLowerCase().includes("pir") ? "pir" : "eps"),
+      soleira:"com", batente:"aberto", aquecimento:"sem",
+      protecaoExterna:false, protecaoInterna:false, visor:"sem",
+      informacoes:"",
+    };
+  }
+  function selectOptions(map, selected){
+    return Object.entries(map).map(([v,l])=>`<option value="${v}" ${v===selected?"selected":""}>${esc(l)}</option>`).join("");
+  }
+  function fichaTecnicaFormHtml(q, p){
+    const f = Object.assign(fichaTecnicaDefaults(p), q.fichaTecnica || {});
+    const isPorta = p.categoria === "Portas";
+    return `
+      <form id="fichaTecnicaForm" data-id="${q.id}">
+        <div class="ficha-section-title">Dimensões</div>
+        <div class="ficha-grid">
+          <div class="field"><label for="ft_x">${isPorta?"Largura — X (mm)":"Largura (mm)"}</label><input type="number" id="ft_x" value="${esc(f.x)}" placeholder="Ex: 1520"></div>
+          <div class="field"><label for="ft_y">${isPorta?"Altura — Y (mm)":"Altura / comprimento (mm)"}</label><input type="number" id="ft_y" value="${esc(f.y)}" placeholder="Ex: 2100"></div>
+          ${isPorta?`<div class="field"><label for="ft_b">Espessura da folha — B (mm)</label><input type="number" id="ft_b" value="${esc(f.b)}" placeholder="Ex: 150"></div>`:""}
+          <div class="field"><label for="ft_localObra">Local da obra</label><input type="text" id="ft_localObra" value="${esc(f.localObra)}" placeholder="Cidade - UF"></div>
+        </div>
+        ${isPorta ? `
+        <div class="ficha-section-title">Especificações da porta</div>
+        <div class="ficha-grid">
+          <div class="field"><label for="ft_abertura">Abertura</label><select id="ft_abertura">${selectOptions(FICHA_OPCOES.abertura, f.abertura)}</select></div>
+          <div class="field"><label for="ft_revInterno">Revest. folha interno</label><select id="ft_revInterno">${selectOptions(FICHA_OPCOES.revestimento, f.revInterno)}</select></div>
+          <div class="field"><label for="ft_revExterno">Revest. folha externo</label><select id="ft_revExterno">${selectOptions(FICHA_OPCOES.revestimento, f.revExterno)}</select></div>
+          <div class="field"><label for="ft_nucleo">Núcleo isolante</label><select id="ft_nucleo">${selectOptions(FICHA_OPCOES.nucleo, f.nucleo)}</select></div>
+          <div class="field"><label for="ft_soleira">Soleira</label><select id="ft_soleira">${selectOptions(FICHA_OPCOES.soleira, f.soleira)}</select></div>
+          <div class="field"><label for="ft_batente">Batente</label><select id="ft_batente">${selectOptions(FICHA_OPCOES.batente, f.batente)}</select></div>
+          <div class="field"><label for="ft_aquecimento">Aquecimento</label><select id="ft_aquecimento">${selectOptions(FICHA_OPCOES.aquecimento, f.aquecimento)}</select></div>
+          <div class="field"><label for="ft_visor">Visor</label><select id="ft_visor">${selectOptions(FICHA_OPCOES.visor, f.visor)}</select></div>
+        </div>
+        <div class="field" style="margin-top:4px;">
+          <label>Proteção em chapa de alumínio xadrez</label>
+          <label class="checkbox-row"><input type="checkbox" id="ft_protecaoExterna" ${f.protecaoExterna?"checked":""}><span>Externa</span></label>
+          <label class="checkbox-row"><input type="checkbox" id="ft_protecaoInterna" ${f.protecaoInterna?"checked":""}><span>Interna</span></label>
+        </div>` : ""}
+        <div class="ficha-section-title">Informações adicionais</div>
+        <div class="field">
+          <label for="ft_informacoes">Observações para a equipe técnica (medidas específicas, prazos, condições do local, etc.)</label>
+          <textarea id="ft_informacoes" rows="4" placeholder="Escreva aqui qualquer informação extra para a ficha técnica...">${esc(f.informacoes)}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Salvar ficha técnica</button>
+      </form>
+    `;
+  }
+  function fichaTecnicaViewHtml(q, p){
+    const f = q.fichaTecnica;
+    if(!f) return `<p class="hint">O cliente ainda não preencheu a ficha técnica deste orçamento.</p>`;
+    const isPorta = p.categoria === "Portas";
+    const rows = [
+      [isPorta?"Largura (X)":"Largura", f.x ? f.x+" mm" : "—"],
+      [isPorta?"Altura (Y)":"Altura/comprimento", f.y ? f.y+" mm" : "—"],
+    ];
+    if(isPorta) rows.push(["Espessura da folha (B)", f.b ? f.b+" mm" : "—"]);
+    rows.push(["Local da obra", f.localObra || "—"]);
+    if(isPorta){
+      rows.push(
+        ["Abertura", FICHA_OPCOES.abertura[f.abertura] || "—"],
+        ["Revest. folha interno", FICHA_OPCOES.revestimento[f.revInterno] || "—"],
+        ["Revest. folha externo", FICHA_OPCOES.revestimento[f.revExterno] || "—"],
+        ["Núcleo isolante", FICHA_OPCOES.nucleo[f.nucleo] || "—"],
+        ["Soleira", FICHA_OPCOES.soleira[f.soleira] || "—"],
+        ["Batente", FICHA_OPCOES.batente[f.batente] || "—"],
+        ["Aquecimento", FICHA_OPCOES.aquecimento[f.aquecimento] || "—"],
+        ["Visor", FICHA_OPCOES.visor[f.visor] || "—"],
+        ["Proteção alumínio xadrez", [f.protecaoExterna&&"Externa", f.protecaoInterna&&"Interna"].filter(Boolean).join(" + ") || "Nenhuma"],
+      );
+    }
+    return `
+      <div class="ficha-view">
+        <dl>${rows.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${esc(String(v))}</dd></div>`).join("")}</dl>
+        <div class="ficha-info">
+          <dt style="text-transform:uppercase;font-size:.72rem;letter-spacing:.04em;color:var(--text-2);margin-bottom:4px;">Informações adicionais do cliente</dt>
+          <dd>${f.informacoes ? esc(f.informacoes) : "Nenhuma observação adicional."}</dd>
+        </div>
+      </div>
+    `;
+  }
+
   function viewOrcamentoResumo(id){
     const q = getQuote(id);
     if(!q) return emptyState("Orçamento não encontrado.", "#/catalogo", "Voltar ao catálogo");
@@ -1496,6 +1607,11 @@
             <button class="btn btn-secondary btn-block" data-nav="#/meus-pedidos">Ver meus pedidos</button>
           ` : ""}
         </div>
+      </div>
+      <div class="card pad" style="margin-top:20px;">
+        <h3 style="margin-bottom:4px;">Ficha técnica</h3>
+        <p class="hint" style="margin-bottom:16px;">${isAdmin ? "Medidas e informações preenchidas pelo cliente para a produção." : "Preencha as medidas e qualquer informação extra para a nossa equipe técnica. Pode editar até aprovar o orçamento."}</p>
+        ${(!isAdmin && q.status!=="convertido" && q.status!=="encaminhado_representante") ? fichaTecnicaFormHtml(q, p) : fichaTecnicaViewHtml(q, p)}
       </div>
       ${threadChatHtml(q, isAdmin, "orcamento", "Conversa sobre o orçamento", "Tire dúvidas com a nossa equipe sobre esta estimativa.")}
     `;
@@ -2077,6 +2193,40 @@
       } else {
         showToast(id ? "Produto atualizado." : "Produto criado.");
       }
+      render();
+    }
+
+    if(e.target.id === "fichaTecnicaForm"){
+      e.preventDefault();
+      const q = getQuote(e.target.dataset.id);
+      const me = currentUser();
+      if(!q || !me || q.clientId !== me.id) return;
+      const p = getProduct(q.productId);
+      const isPorta = p.categoria === "Portas";
+      const ft = Object.assign(fichaTecnicaDefaults(p), q.fichaTecnica || {}, {
+        x: document.getElementById("ft_x").value.trim(),
+        y: document.getElementById("ft_y").value.trim(),
+        localObra: document.getElementById("ft_localObra").value.trim(),
+        informacoes: document.getElementById("ft_informacoes").value.trim(),
+      });
+      if(isPorta){
+        Object.assign(ft, {
+          b: document.getElementById("ft_b").value.trim(),
+          abertura: document.getElementById("ft_abertura").value,
+          revInterno: document.getElementById("ft_revInterno").value,
+          revExterno: document.getElementById("ft_revExterno").value,
+          nucleo: document.getElementById("ft_nucleo").value,
+          soleira: document.getElementById("ft_soleira").value,
+          batente: document.getElementById("ft_batente").value,
+          aquecimento: document.getElementById("ft_aquecimento").value,
+          visor: document.getElementById("ft_visor").value,
+          protecaoExterna: document.getElementById("ft_protecaoExterna").checked,
+          protecaoInterna: document.getElementById("ft_protecaoInterna").checked,
+        });
+      }
+      q.fichaTecnica = ft;
+      saveDb(db);
+      showToast("Ficha técnica salva.");
       render();
     }
 
