@@ -1610,8 +1610,11 @@
       </div>
       <div class="card pad" style="margin-top:20px;">
         <h3 style="margin-bottom:4px;">Ficha técnica</h3>
-        <p class="hint" style="margin-bottom:16px;">${isAdmin ? "Medidas e informações preenchidas pelo cliente para a produção." : "Preencha as medidas e qualquer informação extra para a nossa equipe técnica. Pode editar até aprovar o orçamento."}</p>
-        ${(!isAdmin && q.status!=="convertido" && q.status!=="encaminhado_representante") ? fichaTecnicaFormHtml(q, p) : fichaTecnicaViewHtml(q, p)}
+        ${(()=>{ const editable = !isAdmin && q.status!=="convertido" && q.status!=="encaminhado_representante";
+          const hint = isAdmin ? "Medidas e informações preenchidas pelo cliente para a produção."
+            : editable ? "Preencha as medidas e qualquer informação extra para a nossa equipe técnica. Pode editar até aprovar o orçamento."
+            : "Medidas e informações enviadas para a nossa equipe técnica.";
+          return `<p class="hint" style="margin-bottom:16px;">${hint}</p>${editable ? fichaTecnicaFormHtml(q, p) : fichaTecnicaViewHtml(q, p)}`; })()}
       </div>
       ${threadChatHtml(q, isAdmin, "orcamento", "Conversa sobre o orçamento", "Tire dúvidas com a nossa equipe sobre esta estimativa.")}
     `;
