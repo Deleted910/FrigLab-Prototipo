@@ -1509,7 +1509,7 @@
         </div>` : ""}
         <div class="ficha-section-title">Informações adicionais</div>
         <div class="field" id="f_ft_informacoes">
-          <label for="ft_informacoes">Observações para a equipe técnica (medidas específicas, prazos, condições do local, etc.)</label>
+          <label for="ft_informacoes">Observações para a equipe técnica — opcional (medidas específicas, prazos, condições do local, etc.)</label>
           <textarea id="ft_informacoes" rows="4" placeholder="Escreva aqui qualquer informação extra para a ficha técnica...">${esc(f.informacoes)}</textarea>
           <span class="error" hidden></span>
         </div>
@@ -2222,7 +2222,6 @@
       if(!vy){ fieldError("f_ft_y","Preencha este campo."); ok=false; }
       if(isPorta && !document.getElementById("ft_b").value.trim()){ fieldError("f_ft_b","Preencha este campo."); ok=false; }
       if(!vLocal){ fieldError("f_ft_localObra","Preencha este campo."); ok=false; }
-      if(!vInfo){ fieldError("f_ft_informacoes","Preencha este campo."); ok=false; }
       if(!ok){ showToast("Preencha todos os dados da ficha técnica corretamente."); return; }
       const ft = Object.assign(fichaTecnicaDefaults(p), q.fichaTecnica || {}, {
         x: vx,
