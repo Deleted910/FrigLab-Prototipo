@@ -824,7 +824,7 @@
     if(PUBLIC_ROUTES.includes(route)){ go(user.role==="admin" ? "#/admin/catalogo" : "#/catalogo"); return false; }
     if(user.role!=="admin" && ADMIN_ROUTES.includes(route)){ go("#/catalogo"); return false; }
     const isOrcamentoDetail = route.startsWith("#/orcamento/") && !route.startsWith("#/orcamento/chat");
-    if(user.role==="admin" && route!=="#/" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/") && !isOrcamentoDetail){ go("#/admin/catalogo"); return false; }
+    if(user.role==="admin" && route!=="#/" && route!=="#/aceitar-termos" && !ADMIN_ROUTES.includes(route) && !route.startsWith("#/pedido/") && !isOrcamentoDetail){ go("#/admin/catalogo"); return false; }
     return true;
   }
 
