@@ -1471,8 +1471,10 @@
       soleira:"com", batente:"aberto", aquecimento:"sem",
       protecaoExterna:false, protecaoInterna:false, visor:"sem",
       informacoes:"",
+      concluida:false, concluidaVia:"",
     };
   }
+  const FICHA_CONCLUIDA_LABEL = {chat:"chat", whatsapp:"WhatsApp"};
   function selectOptions(map, selected){
     return Object.entries(map).map(([v,l])=>`<option value="${v}" ${v===selected?"selected":""}>${esc(l)}</option>`).join("");
   }
@@ -1483,10 +1485,10 @@
       <form id="fichaTecnicaForm" data-id="${q.id}">
         <div class="ficha-section-title">Dimensões</div>
         <div class="ficha-grid">
-          <div class="field"><label for="ft_x">${isPorta?"Largura — X (mm)":"Largura (mm)"}</label><input type="number" id="ft_x" value="${esc(f.x)}" placeholder="Ex: 1520"></div>
-          <div class="field"><label for="ft_y">${isPorta?"Altura — Y (mm)":"Altura / comprimento (mm)"}</label><input type="number" id="ft_y" value="${esc(f.y)}" placeholder="Ex: 2100"></div>
-          ${isPorta?`<div class="field"><label for="ft_b">Espessura da folha — B (mm)</label><input type="number" id="ft_b" value="${esc(f.b)}" placeholder="Ex: 150"></div>`:""}
-          <div class="field"><label for="ft_localObra">Local da obra</label><input type="text" id="ft_localObra" value="${esc(f.localObra)}" placeholder="Cidade - UF"></div>
+          <div class="field" id="f_ft_x"><label for="ft_x">${isPorta?"Largura — X (mm)":"Largura (mm)"}</label><input type="number" id="ft_x" value="${esc(f.x)}" placeholder="Ex: 1520"><span class="error" hidden></span></div>
+          <div class="field" id="f_ft_y"><label for="ft_y">${isPorta?"Altura — Y (mm)":"Altura / comprimento (mm)"}</label><input type="number" id="ft_y" value="${esc(f.y)}" placeholder="Ex: 2100"><span class="error" hidden></span></div>
+          ${isPorta?`<div class="field" id="f_ft_b"><label for="ft_b">Espessura da folha — B (mm)</label><input type="number" id="ft_b" value="${esc(f.b)}" placeholder="Ex: 150"><span class="error" hidden></span></div>`:""}
+          <div class="field" id="f_ft_localObra"><label for="ft_localObra">Local da obra</label><input type="text" id="ft_localObra" value="${esc(f.localObra)}" placeholder="Cidade - UF"><span class="error" hidden></span></div>
         </div>
         ${isPorta ? `
         <div class="ficha-section-title">Especificações da porta</div>
@@ -1506,12 +1508,19 @@
           <label class="checkbox-row"><input type="checkbox" id="ft_protecaoInterna" ${f.protecaoInterna?"checked":""}><span>Interna</span></label>
         </div>` : ""}
         <div class="ficha-section-title">Informações adicionais</div>
-        <div class="field">
+        <div class="field" id="f_ft_informacoes">
           <label for="ft_informacoes">Observações para a equipe técnica (medidas específicas, prazos, condições do local, etc.)</label>
           <textarea id="ft_informacoes" rows="4" placeholder="Escreva aqui qualquer informação extra para a ficha técnica...">${esc(f.informacoes)}</textarea>
+          <span class="error" hidden></span>
         </div>
         <button type="submit" class="btn btn-primary">Salvar ficha técnica</button>
       </form>
+      <div class="ficha-section-title">Finalizar ficha técnica</div>
+      ${f.concluida ? `<p class="hint" style="margin-bottom:10px;">✓ Ficha técnica finalizada pelo ${FICHA_CONCLUIDA_LABEL[f.concluidaVia]||f.concluidaVia}. A aprovação do orçamento já está liberada abaixo.</p>` : `<p class="hint" style="margin-bottom:10px;">Depois de salvar os dados acima, finalize por um dos canais abaixo para liberar a aprovação do orçamento.</p>`}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-secondary" data-action="finalizar-ficha" data-via="chat" data-id="${q.id}">Finalizar pelo chat</button>
+        <button type="button" class="btn btn-secondary" data-action="finalizar-ficha" data-via="whatsapp" data-id="${q.id}">Finalizar pelo WhatsApp</button>
+      </div>
     `;
   }
   function fichaTecnicaViewHtml(q, p){
@@ -1544,6 +1553,7 @@
           <dt style="text-transform:uppercase;font-size:.72rem;letter-spacing:.04em;color:var(--text-2);margin-bottom:4px;">Informações adicionais do cliente</dt>
           <dd>${f.informacoes ? esc(f.informacoes) : "Nenhuma observação adicional."}</dd>
         </div>
+        <p class="hint" style="margin-top:14px;">${f.concluida ? `✓ Ficha técnica finalizada pelo cliente via ${FICHA_CONCLUIDA_LABEL[f.concluidaVia]||f.concluidaVia}.` : "Cliente ainda não finalizou a ficha técnica."}</p>
       </div>
     `;
   }
@@ -1572,10 +1582,14 @@
         </div>
         <div class="card pad" style="display:flex;flex-direction:column;gap:12px;">
           <h3>O que deseja fazer?</h3>
-          ${q.status==="pendente" ? `
+          ${q.status==="pendente" ? (
+            (q.fichaTecnica && q.fichaTecnica.concluida) ? `
             <button class="btn btn-primary btn-block" data-action="aprovar-orcamento" data-id="${q.id}">Aprovar e continuar para pagamento</button>
             <button class="btn btn-secondary btn-block" data-action="recusar-orcamento" data-id="${q.id}">Falar com representante regional</button>
-          ` : q.status==="aprovado_cliente" ? `
+            ` : `
+            <p style="color:var(--text-2);font-size:.9rem;">Preencha e finalize a ficha técnica abaixo (pelo chat ou WhatsApp) para liberar a aprovação do orçamento.</p>
+            `
+          ) : q.status==="aprovado_cliente" ? `
             <button class="btn btn-primary btn-block" data-nav="#/pagamento/${q.id}">Continuar para pagamento</button>
           ` : q.status==="encaminhado_representante" ? `
             <p style="color:var(--text-2);font-size:.9rem;">Seu orçamento foi encaminhado para um representante regional. Em breve nossa equipe entrará em contato.</p>
@@ -1948,6 +1962,21 @@
     }
     if(act === "ver-orcamento"){ go("#/orcamento/"+action.dataset.id); return; }
 
+    if(act === "finalizar-ficha"){
+      const q = getQuote(action.dataset.id);
+      const via = action.dataset.via;
+      const me = currentUser();
+      if(!q || !me || q.clientId !== me.id) return;
+      if(!q.fichaTecnica){ showToast("Preencha e salve a ficha técnica antes de finalizar."); return; }
+      q.fichaTecnica.concluida = true;
+      q.fichaTecnica.concluidaVia = via;
+      q.chat = q.chat || [];
+      q.chat.push({from:"cliente", texto: via==="whatsapp" ? "Ficha técnica preenchida e finalizada pelo WhatsApp. Aguardo a aprovação do orçamento." : "Ficha técnica preenchida e finalizada pelo chat. Aguardo a aprovação do orçamento.", ts:new Date().toISOString()});
+      saveDb(db);
+      showToast(via==="whatsapp" ? "Ficha técnica finalizada pelo WhatsApp." : "Ficha técnica finalizada pelo chat.");
+      render();
+      return;
+    }
     if(act === "aprovar-orcamento"){
       const q = getQuote(action.dataset.id); q.status="aprovado_cliente"; saveDb(db); render(); showToast("Orçamento aprovado. Vamos para o pagamento.");
       return;
@@ -2183,11 +2212,23 @@
       if(!q || !me || q.clientId !== me.id) return;
       const p = getProduct(q.productId);
       const isPorta = p.categoria === "Portas";
+      clearErrors(e.target);
+      let ok = true;
+      const vx = document.getElementById("ft_x").value.trim();
+      const vy = document.getElementById("ft_y").value.trim();
+      const vLocal = document.getElementById("ft_localObra").value.trim();
+      const vInfo = document.getElementById("ft_informacoes").value.trim();
+      if(!vx){ fieldError("f_ft_x","Preencha este campo."); ok=false; }
+      if(!vy){ fieldError("f_ft_y","Preencha este campo."); ok=false; }
+      if(isPorta && !document.getElementById("ft_b").value.trim()){ fieldError("f_ft_b","Preencha este campo."); ok=false; }
+      if(!vLocal){ fieldError("f_ft_localObra","Preencha este campo."); ok=false; }
+      if(!vInfo){ fieldError("f_ft_informacoes","Preencha este campo."); ok=false; }
+      if(!ok){ showToast("Preencha todos os dados da ficha técnica corretamente."); return; }
       const ft = Object.assign(fichaTecnicaDefaults(p), q.fichaTecnica || {}, {
-        x: document.getElementById("ft_x").value.trim(),
-        y: document.getElementById("ft_y").value.trim(),
-        localObra: document.getElementById("ft_localObra").value.trim(),
-        informacoes: document.getElementById("ft_informacoes").value.trim(),
+        x: vx,
+        y: vy,
+        localObra: vLocal,
+        informacoes: vInfo,
       });
       if(isPorta){
         Object.assign(ft, {
