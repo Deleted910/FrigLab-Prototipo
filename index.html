@@ -1,7 +1,10 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FrigLab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <style>
   :root{
     --bg:#EFF4F5;
@@ -1558,6 +1561,151 @@
     `;
   }
 
+  /* ---- PDF da ficha técnica (mesmo modelo da ficha de papel da Matelfrig) ---- */
+  function gerarFichaPdf(q){
+    if(!window.jspdf){ showToast("Não foi possível carregar o gerador de PDF. Verifique a conexão."); return null; }
+    const p = getProduct(q.productId);
+    const f = Object.assign(fichaTecnicaDefaults(p), q.fichaTecnica || {});
+    const cli = db.users.find(u=>u.id===q.clientId);
+    const ped = db.orders.find(o=>o.quoteId===q.id);
+    const isPorta = p.categoria === "Portas";
+    const doc = new window.jspdf.jsPDF({unit:"mm", format:"a4"});
+    const RED = [176,35,35], BLACK = [20,20,20], GRAY = [90,90,90];
+    const L = 10, W = 190;
+
+    const box = (x,y,w,h)=>{ doc.setDrawColor(40); doc.setLineWidth(0.25); doc.rect(x,y,w,h); };
+    const txt = (s,x,y,o)=>{
+      o = o || {};
+      doc.setFont(o.font||"helvetica", o.bold?"bold":"normal");
+      doc.setFontSize(o.size||8);
+      doc.setTextColor.apply(doc, o.color||BLACK);
+      doc.text(String(s), x, y, {align:o.align||"left", maxWidth:o.maxW});
+    };
+    const chk = (on)=> on ? "(X)" : "( )";
+    const opt = (on,label,x,y,o)=>{ txt(chk(on)+" "+label, x, y, Object.assign({size:7.5}, o||{})); };
+    const val = (s,x,y,o)=> txt(s, x, y, Object.assign({size:9, bold:true, color:RED}, o||{}));
+
+    /* ---- Cabeçalho ---- */
+    let y = 10;
+    box(L,y,62,30); box(L+62,y,66,30); box(L+128,y,62,30);
+    doc.setDrawColor.apply(doc, [200,60,60]); doc.setLineWidth(0.8); doc.ellipse(L+31, y+15, 26, 11, "S");
+    txt("MATELFRIG", L+31, y+16, {font:"times", bold:true, size:17, align:"center"});
+    txt("Painéis e Portas Frigoríficas", L+31, y+21, {size:6, align:"center", color:GRAY});
+    txt("FICHA TÉCNICA " + (isPorta ? "PORTA" : p.categoria.toUpperCase().replace("PAINÉIS ISOTÉRMICOS","PAINEL").replace("TELHAS ISOTÉRMICAS","TELHA")), L+95, y+17, {size:12, bold:true, align:"center"});
+    const pedNum = ped ? ped.numero : q.numero;
+    txt("PEDIDO Nº:", L+130, y+6.5, {bold:true}); val(pedNum, L+150, y+6.5);
+    doc.line(L+128, y+10, L+190, y+10);
+    txt("CLIENTE:", L+130, y+16.5, {bold:true}); val(cli?cli.nome:"", L+147, y+16.5, {size:8, maxW:42});
+    doc.line(L+128, y+20, L+190, y+20);
+    txt("LOCAL DA OBRA:", L+130, y+26.5, {bold:true}); val(f.localObra||"", L+158, y+26.5, {size:8, maxW:31});
+
+    /* ---- Modelo / tipo / quantidade ---- */
+    y = 40;
+    box(L,y,128,10); box(L+128,y,62,10);
+    txt("MODELO:", L+2, y+6.5, {bold:true}); val(p.nome.toUpperCase(), L+20, y+6.5);
+    opt(true,"INDUSTRIAL", L+130, y+6.5); opt(false,"STANDART", L+163, y+6.5);
+    y = 50;
+    box(L,y,62,10); box(L+62,y,66,10); box(L+128,y,62,10);
+    txt("CÓDIGO:", L+2, y+6.5, {bold:true}); val(p.sku, L+18, y+6.5, {size:8});
+    txt("QUANTIDADE:", L+64, y+6.5, {bold:true}); val(String(q.quantidade).padStart(2,"0"), L+90, y+6.5);
+    txt("PLAQUETA:", L+130, y+6.5, {bold:true});
+
+    /* ---- Dimensões / capela / abertura ---- */
+    y = 60;
+    const h3 = isPorta ? 50 : 30;
+    box(L,y,62,h3); box(L+62,y,66,h3); box(L+128,y,62,h3);
+    txt("DIMENSÕES", L+31, y+6, {bold:true, align:"center"});
+    txt("X:", L+34, y+17, {bold:true}); val(f.x||"", L+40, y+17);
+    txt("Y:", L+34, y+27, {bold:true}); val(f.y||"", L+40, y+27);
+    if(isPorta){ txt("B:", L+34, y+37, {bold:true}); val(f.b||"", L+40, y+37); }
+    // desenho simplificado da porta (largura X, altura Y)
+    doc.setDrawColor(60); doc.setLineWidth(0.3); doc.rect(L+6, y+10, 18, 30);
+    txt("X", L+15, y+44.5, {size:7, align:"center"}); txt("Y", L+3.5, y+26, {size:7});
+    if(isPorta) txt("B = ESPESSURA DA FOLHA", L+31, y+47, {size:5.5, align:"center", color:RED});
+    txt(isPorta ? "CAPELA PORTA C/ PASS. TRILHO" : "ESPESSURA / ACABAMENTO", L+95, y+6, {bold:true, align:"center"});
+    if(isPorta){
+      txt("C:", L+70, y+20, {bold:true}); txt("A:", L+70, y+30, {bold:true}); txt("PIT:", L+70, y+40, {bold:true});
+      txt("PIT = PONTO INFERIOR DO TRILHO", L+95, y+47, {size:5.5, align:"center", color:RED});
+    } else {
+      txt("Núcleo: EPS", L+70, y+20, {size:8}); txt("Espessura: sob consulta", L+70, y+30, {size:8});
+    }
+    txt("ABERTURA", L+159, y+6, {bold:true, align:"center"});
+    if(isPorta){
+      opt(f.abertura==="direita","DIREITA", L+134, y+20, {size:8});
+      opt(f.abertura==="esquerda","ESQUERDA", L+134, y+38, {size:8});
+    } else {
+      txt("Não se aplica", L+159, y+25, {align:"center", size:8, color:GRAY});
+    }
+    y += h3;
+
+    if(isPorta){
+      /* ---- Revestimentos / núcleo / soleira / batente ---- */
+      const cw = [38,38,38,38,38];
+      const heads = ["REVEST. DA FOLHA INTERNO","REVEST. DA FOLHA EXTERNO","NÚCLEO ISOLANTE","SOLEIRA","BATENTE"];
+      let cx = L;
+      heads.forEach((h,i)=>{ box(cx,y,cw[i],22); txt(h, cx+cw[i]/2, y+5.5, {bold:true, size:6.5, align:"center", maxW:cw[i]-2}); cx += cw[i]; });
+      const rev = (v)=>[[v==="aco_ral9003","AÇO RAL 9003"],[v==="aco_inox","AÇO INOX"]];
+      rev(f.revInterno).forEach(([on,l],i)=>opt(on,l,L+3,y+12+i*5.5));
+      rev(f.revExterno).forEach(([on,l],i)=>opt(on,l,L+41,y+12+i*5.5));
+      opt(f.nucleo==="eps","EPS",L+82,y+12); opt(f.nucleo==="pir","PIR",L+82,y+17.5);
+      opt(f.soleira==="com","COM SOLEIRA",L+117,y+12); opt(f.soleira==="sem","SEM SOLEIRA",L+117,y+17.5);
+      opt(f.batente==="aberto","ABERTO",L+157,y+12); opt(f.batente==="fechado","FECHADO",L+157,y+17.5);
+      y += 22;
+
+      /* ---- Aquecimento / proteção / visor ---- */
+      box(L,y,80,24); box(L+80,y,64,24); box(L+144,y,46,24);
+      txt("AQUECIMENTO", L+40, y+5.5, {bold:true, align:"center"});
+      opt(f.aquecimento==="sem","SEM AQUECIMENTO",L+3,y+11); opt(f.aquecimento==="simples","C/ AQUECIMENTO SIMPLES",L+3,y+16); opt(f.aquecimento==="duplo","C/ AQUECIMENTO DUPLO",L+3,y+21);
+      txt("PROTEÇÃO", L+112, y+5.5, {bold:true, align:"center"});
+      const prot = f.protecaoExterna || f.protecaoInterna;
+      opt(prot,"CHAPA ALUMÍNIO XADREZ",L+83,y+11); opt(false,"BUMPER",L+83,y+16);
+      opt(f.protecaoExterna,"EXTERNA",L+126,y+11); opt(f.protecaoInterna,"INTERNA",L+126,y+16);
+      txt("VISOR", L+167, y+5.5, {bold:true, align:"center"});
+      opt(f.visor==="com","COM VISOR",L+148,y+13); opt(f.visor==="sem","SEM VISOR",L+148,y+19);
+      y += 24;
+    }
+
+    /* ---- Fixação e acabamento do vão luz / informações ---- */
+    const hInf = 74;
+    box(L,y,190,7); txt("FIXAÇÃO E ACABAMENTO VÃO LUZ", L+60, y+5, {bold:true, size:8, align:"center"});
+    txt("INFORMAÇÕES", L+155, y+5, {bold:true, size:8, align:"center"});
+    y += 7;
+    box(L,y,120,hInf); box(L+120,y,70,hInf);
+    const fix = [["PAINEL","ESP. PAINEL ="],["ALVENARIA","ESP. ALVENARIA ="],["PAINEL / ALVENARIA","ESP. PAINEL / ALVENARIA ="],["REVESTIMENTO ALVENARIA","ESP. TOTAL DA PAREDE ="],["REVESTIMENTO ALVENARIA","ESP. TOTAL DA PAREDE ="]];
+    fix.forEach(([a,b],i)=>{
+      const yy = y + i*14.8;
+      doc.setDrawColor(150); doc.setLineWidth(0.15); doc.line(L, yy, L+120, yy);
+      txt(a, L+2, yy+8.5, {bold:true, size:6.5, maxW:30});
+      doc.setFillColor(235,235,235); doc.rect(L+34, yy+2, 48, 10.5, "F");
+      txt(b, L+86, yy+8.5, {size:6.5});
+    });
+    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor.apply(doc, RED);
+    const info = doc.splitTextToSize((f.informacoes||"").toUpperCase(), 62);
+    if(info.length){ doc.text(info.slice(0,26), L+123, y+6); }
+    y += hInf;
+
+    /* ---- Rodapé ---- */
+    box(L,y,190,9); box(L,y+9,190,9);
+    txt("PERFIL P/ ACABAMENTO DO VÃO LUZ:", L+2, y+6, {bold:true, size:7}); opt(false,"NÃO",L+68,y+6); opt(false,"SIM",L+88,y+6);
+    txt("TIPO:", L+110, y+6, {bold:true, size:7});
+    txt("CAIXA C/ ACESSÓRIOS DE MONTAGEM:", L+2, y+15, {bold:true, size:7}); opt(true,"PADRÃO (FIXAÇÕES + SIKAFLEX + REBITE)",L+68,y+15);
+    y += 18;
+    box(L,y,190,16);
+    txt("OBS:", L+2, y+5.5, {bold:true, size:7});
+    if(f.concluida) txt("Ficha finalizada pelo cliente via " + (FICHA_CONCLUIDA_LABEL[f.concluidaVia]||f.concluidaVia) + ".", L+12, y+5.5, {size:7, color:GRAY});
+    y += 16;
+    const prazo = ped && ped.previsaoEntrega ? new Date(ped.previsaoEntrega).toLocaleDateString("pt-BR") : "";
+    const cols = [["FRETE TRANSPORTADORA",30],["PROJETOU",32],["DATA",26],["PRAZO DE ENTREGA",42],["PLAQUETA",30],["VISTO",30]];
+    let cx2 = L;
+    cols.forEach(([h,w],i)=>{ box(cx2,y,w,14); txt(h, cx2+w/2, y+4.5, {bold:true, size:6.5, align:"center"});
+      if(h==="FRETE TRANSPORTADORA"){ opt(false,"SIM",cx2+3,y+10.5,{size:6.5}); opt(false,"NÃO",cx2+16,y+10.5,{size:6.5}); }
+      if(h==="PROJETOU") txt("FrigLab (site)", cx2+w/2, y+10.5, {align:"center", size:7});
+      if(h==="DATA") txt(new Date().toLocaleDateString("pt-BR"), cx2+w/2, y+10.5, {align:"center", size:7});
+      if(h==="PRAZO DE ENTREGA") txt(prazo, cx2+w/2, y+10.5, {align:"center", size:7});
+      cx2 += w; });
+    return {doc, nome: "ficha-tecnica-" + (q.numero||"orcamento") + ".pdf"};
+  }
+
   function viewOrcamentoResumo(id){
     const q = getQuote(id);
     if(!q) return emptyState("Orçamento não encontrado.", "#/catalogo", "Voltar ao catálogo");
@@ -1600,7 +1748,10 @@
         </div>
       </div>
       <div class="card pad" style="margin-top:20px;">
-        <h3 style="margin-bottom:4px;">Ficha técnica</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
+          <h3>Ficha técnica</h3>
+          ${q.fichaTecnica ? `<button class="btn btn-secondary btn-sm" data-action="baixar-ficha-pdf" data-id="${q.id}">⬇ Baixar ficha técnica (PDF)</button>` : ""}
+        </div>
         ${(()=>{ const editable = !isAdmin && q.status!=="convertido" && q.status!=="encaminhado_representante";
           const hint = isAdmin ? "Medidas e informações preenchidas pelo cliente para a produção."
             : editable ? "Preencha as medidas e qualquer informação extra para a nossa equipe técnica. Pode editar até aprovar o orçamento."
@@ -1962,6 +2113,14 @@
     }
     if(act === "ver-orcamento"){ go("#/orcamento/"+action.dataset.id); return; }
 
+    if(act === "baixar-ficha-pdf"){
+      const q = getQuote(action.dataset.id);
+      const me = currentUser();
+      if(!q || !me || (me.role !== "admin" && q.clientId !== me.id)) return;
+      const r = gerarFichaPdf(q);
+      if(r){ r.doc.save(r.nome); showToast("Ficha técnica baixada em PDF."); }
+      return;
+    }
     if(act === "finalizar-ficha"){
       const q = getQuote(action.dataset.id);
       const via = action.dataset.via;
